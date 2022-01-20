@@ -18,7 +18,7 @@ Features:
 ### Installation
 
 ```sh
-go get github.com/marioolofo/go/gameengine/ecs
+go get github.com/marioolofo/go-gameengine-ecs
 ```
 
 > This project was made with Go 1.17, but it may work with older versions too
