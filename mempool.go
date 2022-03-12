@@ -117,7 +117,7 @@ func (s *memPool) Get(index Index) unsafe.Pointer {
 
 func (s *memPool) Set(index Index, value interface{}) {
 	dst := s.Get(index)
-	src := reflect.ValueOf(value).UnsafePointer()
+	src := unsafe.Pointer(reflect.ValueOf(value).Pointer())
 	for i := uintptr(0); i < s.itemSize; i++ {
 		*(*byte)(dst) = *(*byte)(src)
 		dst = unsafe.Add(dst, 1)

@@ -87,13 +87,15 @@ func TestBitmaskSearch(t *testing.T) {
 	}
 }
 
-func FuzzBitmaskSearchAndCount(f* testing.F) {
-	f.Add(uint(0))
+func FuzzBitmaskSearchAndCount(t* testing.T) {
+	randomBits := make([]uint, 10)
+
+	randomBits = append(randomBits, 0)
 	for i := 0; i < 10; i++ {
-		f.Add(uint(rand.Uint64()))
+		randomBits = append(randomBits, uint(rand.Uint64()))
 	}
 
-	f.Fuzz(func(t *testing.T, bits uint) {
+	for _, bits := range randomBits {
 		mask := Mask(bits)
 		bitsSet := mask.TotalBitsSet()
 		firstBitOffset := mask.NextBitSet(0)
@@ -119,6 +121,6 @@ func FuzzBitmaskSearchAndCount(f* testing.F) {
 		if firstBit != firstBitOffset {
 			t.Errorf("bit offset error (%0x): %d != %d\n", mask, firstBit, firstBitOffset)
 		}
-	})
+	}
 }
 
