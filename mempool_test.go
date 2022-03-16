@@ -79,7 +79,7 @@ func TestMemPoolUnaligned(t *testing.T) {
 }
 
 func TestMemPoolZeroGetSet(t *testing.T) {
-	type Vec struct { x, y, z float32 }
+	type Vec struct{ x, y, z float32 }
 	vec := Vec{}
 	sys := NewMemoryPool(0, vec, 0)
 
@@ -104,9 +104,9 @@ func TestMemPoolZeroGetSet(t *testing.T) {
 	for i := 0; i < iterations; i++ {
 		ptr := (*Vec)(sys.Get(Index(i)))
 
-		diff := ptr.x + ptr.y + ptr.z - float32(i * 6)
+		diff := ptr.x + ptr.y + ptr.z - float32(i*6)
 		if diff < -0.00001 || diff > 0.00001 {
-			t.Errorf("ptr value differ from expected (%d %d %d) received (%f %f %f)\n", i, i * 2, i * 3, ptr.x, ptr.y, ptr.z)
+			t.Errorf("ptr value differ from expected (%d %d %d) received (%f %f %f)\n", i, i*2, i*3, ptr.x, ptr.y, ptr.z)
 		}
 
 		vec.x = float32(i * 4)
@@ -120,9 +120,9 @@ func TestMemPoolZeroGetSet(t *testing.T) {
 		ptr := sys.Get(Index(i))
 		vecPtr := (*Vec)(ptr)
 
-		diff := vecPtr.x + vecPtr.y + vecPtr.z - float32(i * 15)
+		diff := vecPtr.x + vecPtr.y + vecPtr.z - float32(i*15)
 		if diff < -0.00001 || diff > 0.00001 {
-			t.Errorf("vecPtr differ from expected after Set(%d %d %d) received (%f %f %f)\n", i * 4, i * 5, i * 6, vecPtr.x, vecPtr.y, vecPtr.z)
+			t.Errorf("vecPtr differ from expected after Set(%d %d %d) received (%f %f %f)\n", i*4, i*5, i*6, vecPtr.x, vecPtr.y, vecPtr.z)
 		}
 
 		sys.Zero(Index(i))

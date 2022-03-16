@@ -7,10 +7,10 @@ import (
 
 func TestBitmaskNew(t *testing.T) {
 	mask1 := NewMask(0, 2, 5, 7, 9)
-	mask1Expected := Mask(1 | (1<<2) | (1<<5) | (1<<7) | (1<<9))
+	mask1Expected := Mask(1 | (1 << 2) | (1 << 5) | (1 << 7) | (1 << 9))
 
 	mask2 := NewMask(2, 3, 9, 13)
-	mask2Expected := Mask((1<<2) | (1<<3) | (1<<9) | (1<<13))
+	mask2Expected := Mask((1 << 2) | (1 << 3) | (1 << 9) | (1 << 13))
 
 	if mask1 != mask1Expected {
 		t.Error("Expected bitmask ", mask1Expected, ", NewMask() return is ", mask1)
@@ -75,7 +75,7 @@ func TestBitmaskSearch(t *testing.T) {
 
 	testIndices := []ID{0, 2, 4, 8, 9, 20, 45}
 
-	testBits := NewMask(testIndices ...)
+	testBits := NewMask(testIndices...)
 	index := 0
 	nextBit := testBits.NextBitSet(0)
 	for nextBit != MaskTotalBits {
@@ -87,7 +87,7 @@ func TestBitmaskSearch(t *testing.T) {
 	}
 }
 
-func TestBitmaskSearchAndCount(t* testing.T) {
+func TestBitmaskSearchAndCount(t *testing.T) {
 	randomBits := make([]uint, 10)
 
 	randomBits = append(randomBits, 0)
@@ -123,4 +123,3 @@ func TestBitmaskSearchAndCount(t* testing.T) {
 		}
 	}
 }
-

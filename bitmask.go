@@ -42,7 +42,7 @@ func (e *Mask) Reset() {
 
 // Contains reports if other mask is a subset of this mask
 func (e Mask) Contains(other Mask) bool {
-	return e & other == other
+	return e&other == other
 }
 
 // TotalBitsSet returns how many bits are set in this mask
@@ -50,7 +50,7 @@ func (e Mask) TotalBitsSet() uint {
 	var count uint
 
 	for e != 0 {
-		count += nibbleToBitsSet[e & 0xf]
+		count += nibbleToBitsSet[e&0xf]
 		e >>= 4
 	}
 	return count

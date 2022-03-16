@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"log"
 	"reflect"
 	"unsafe"
 )
@@ -33,24 +32,24 @@ type MemoryPool interface {
 }
 
 type memoryPage struct {
-	used int
+	used   int
 	buffer []byte
 }
 
 type memPool struct {
-	id ID
-	itemSize uintptr
+	id              ID
+	itemSize        uintptr
 	itemSizeAligned uintptr
-	itemMask uintptr
-	recycle []uintptr
-	pages []memoryPage
+	itemMask        uintptr
+	recycle         []uintptr
+	pages           []memoryPage
 }
 
 // MemoryPoolConfg defines the layout of the MemoryPool
 type MemoryPoolConfg struct {
-	id ID              // id identifies the MemoryPool
-	obj interface{}    // obj is an instance of the object used as template for the block size and alignment
-	forceAlignment int // forceAlignment force all the blocks to have this alignment if forceAlignment > 0
+	id             ID          // id identifies the MemoryPool
+	obj            interface{} // obj is an instance of the object used as template for the block size and alignment
+	forceAlignment int         // forceAlignment force all the blocks to have this alignment if forceAlignment > 0
 }
 
 // NewMemoryPool returns a new MemoryPool for a given config
@@ -59,14 +58,14 @@ func NewMemoryPool(id ID, objectRef interface{}, forceAlignment int) MemoryPool 
 	size := typeOf.Size()
 	align := typeOf.Align()
 
-	if forceAlignment != 0 && forceAlignment&(forceAlignment - 1) != 0 {
-		log.Printf("[Sys] forceAlignment not power of two (%d)\n", forceAlignment)
+	if forceAlignment != 0 && forceAlignment&(forceAlignment-1) != 0 {
+		LogMessage("[NewMemoryPool] forceAlignment not power of two (%d)\n", forceAlignment)
 	} else if forceAlignment > align {
 		align = forceAlignment
 	}
 
-	dataSizeAligned := (size + uintptr(align) - 1) & ^uintptr(align - 1)
-	mask := ^(dataSizeAligned-1)
+	dataSizeAligned := (size + uintptr(align) - 1) & ^uintptr(align-1)
+	mask := ^(dataSizeAligned - 1)
 
 	s := &memPool{
 		id,
@@ -105,13 +104,13 @@ func (s *memPool) Free(index Index) {
 }
 
 func (s *memPool) Get(index Index) unsafe.Pointer {
-	if int(index) >= len(s.pages) << InitialMemoryPoolCapacityShift {
+	if int(index) >= len(s.pages)<<InitialMemoryPoolCapacityShift {
 		return nil
 	}
 	ind := int(index) >> InitialMemoryPoolCapacityShift
 	page := unsafe.Pointer(&s.pages[ind].buffer[0])
-	alignment := s.itemSizeAligned - (uintptr(page) & (s.itemSizeAligned-1))
-	offset := alignment + (uintptr(index) & uintptr(InitialMemoryPoolCapacity - 1)) * s.itemSizeAligned
+	alignment := s.itemSizeAligned - (uintptr(page) & (s.itemSizeAligned - 1))
+	offset := alignment + (uintptr(index)&uintptr(InitialMemoryPoolCapacity-1))*s.itemSizeAligned
 	return unsafe.Add(page, offset)
 }
 

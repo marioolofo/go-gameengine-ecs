@@ -48,7 +48,7 @@ func TestSystemNew(t *testing.T) {
 	}
 }
 
-func TestSystemSetAndZero(t* testing.T) {
+func TestSystemSetAndZero(t *testing.T) {
 	sys := NewSystem(1, vec3{}, 0)
 
 	iterations := 100000
@@ -70,14 +70,14 @@ func TestSystemSetAndZero(t* testing.T) {
 
 	for i := 0; i < iterations; i++ {
 		v := (*vec3)(sys.Get(ID(i)))
-		if i % iterOffset != 0 && v != nil {
+		if i%iterOffset != 0 && v != nil {
 			t.Errorf("invalid index %d contains valid object!", i)
-		} else if i % iterOffset == 0 {
+		} else if i%iterOffset == 0 {
 			if v == nil {
 				t.Errorf("valid index %d contains null object!", i)
 			} else {
 				ind := float32(i)
-				err := v.x-ind + v.y-ind + v.z-ind
+				err := v.x - ind + v.y - ind + v.z - ind
 				if err > 0.00001 || err < -0.00001 {
 					t.Errorf("vector retrieved with invalid values! (%f, %f, %f)\n", v.x, v.y, v.z)
 				}

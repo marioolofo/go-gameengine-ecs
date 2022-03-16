@@ -22,17 +22,17 @@ func TestSparseMapArray(t *testing.T) {
 
 func testSparseGetSet(t *testing.T, arr SparseArray) {
 	for i := Index(0); i < 10000; i += 3 {
-		arr.Set(i, i * 2)
+		arr.Set(i, i*2)
 	}
 	for i := Index(0); i < 10000; i++ {
 		value := arr.Get(i)
-		if i % 3 != 0 {
+		if i%3 != 0 {
 			if value != InvalidIndex {
 				t.Errorf("Expected InvalidIndex for index %d, found %d\n", i, value)
 			}
 		} else {
-			if value != i * 2 {
-				t.Errorf("Expected %d for index %d, found %d\n", i * 2, i, value)
+			if value != i*2 {
+				t.Errorf("Expected %d for index %d, found %d\n", i*2, i, value)
 			}
 			arr.Invalidate(i)
 		}
@@ -61,17 +61,17 @@ func BenchmarkSparseMapArray(b *testing.B) {
 
 func benchSparseGetSet(b *testing.B, arr SparseArray) {
 	for i := Index(0); i < 100000; i += 3 {
-		arr.Set(i, i * 2)
+		arr.Set(i, i*2)
 	}
 	for i := Index(0); i < 100000; i++ {
 		value := arr.Get(i)
-		if i % 3 != 0 {
+		if i%3 != 0 {
 			if value != InvalidIndex {
 				b.Errorf("Expected InvalidIndex for index %d, found %d\n", i, value)
 			}
 		} else {
-			if value != i * 2 {
-				b.Errorf("Expected %d for index %d, found %d\n", i * 2, i, value)
+			if value != i*2 {
+				b.Errorf("Expected %d for index %d, found %d\n", i*2, i, value)
 			}
 		}
 	}

@@ -1,7 +1,6 @@
 package ecs
 
 import (
-	"log"
 	"reflect"
 	"sort"
 	"unsafe"
@@ -9,9 +8,9 @@ import (
 
 // ComponentConfig is a struct that defines the component
 type ComponentConfig struct {
-	ID // ID is the identifier of this component
-	ForceAlignment int // ForceAlignment enforces a especific alignment on allocations
-	Component interface{} // Component is the object used to prepare the System for allocations of this type
+	ID                         // ID is the identifier of this component
+	ForceAlignment int         // ForceAlignment enforces a especific alignment on allocations
+	Component      interface{} // Component is the object used to prepare the System for allocations of this type
 }
 
 // Filter is the interface used to collect entities that shares the same group of components
@@ -69,14 +68,14 @@ type World interface {
 type Entities []Entity
 
 type entityFilter struct {
-	mask Mask
-	world World
+	mask     Mask
+	world    World
 	entities Entities
 }
 
-func (e Entities) Len() int { return len(e) }
+func (e Entities) Len() int           { return len(e) }
 func (e Entities) Less(a, b int) bool { return e[a] < e[b] }
-func (e Entities) Swap(a, b int) { e[a], e[b] = e[b], e[a] }
+func (e Entities) Swap(a, b int)      { e[a], e[b] = e[b], e[a] }
 
 func (e *entityFilter) Entities() []Entity {
 	return e.entities
@@ -88,16 +87,16 @@ func (e *entityFilter) World() World {
 
 type world struct {
 	systemsMask Mask
-	recycleIDs []ID
-	entities []Mask
-	systems [MaskTotalBits]System
-	filters []*entityFilter
+	recycleIDs  []ID
+	entities    []Mask
+	systems     [MaskTotalBits]System
+	filters     []*entityFilter
 }
 
 // NewWorld returns a new World with Systems created for configs
 // New configs can be added at latter stages with World.RegisterComponents
 func NewWorld(configs ...ComponentConfig) World {
-	w := &world {
+	w := &world{
 		0,
 		make([]ID, 0, InitialEntityRecycleCapacity),
 		make([]Mask, 1, InitialEntityCapacity),
@@ -105,19 +104,19 @@ func NewWorld(configs ...ComponentConfig) World {
 		make([]*entityFilter, 0),
 	}
 
-	w.RegisterComponents(configs ...)
+	w.RegisterComponents(configs...)
 	return w
 }
 
 func (w *world) RegisterComponents(configs ...ComponentConfig) {
 	for _, config := range configs {
 		if config.ID < 0 || config.ID >= MaskTotalBits {
-			log.Printf("[World.RegisterComponents] bit mask out of range (trying to use bit %d)\n", config.ID)
+			LogMessage("[World.RegisterComponents] bit mask out of range (trying to use bit %d)\n", config.ID)
 			continue
 		}
 
 		if w.systems[config.ID] != nil {
-			log.Printf("[World.AddSystems] trying to use bit %d for %s, but bit is already in use\n", config.ID, reflect.TypeOf(config.Component).Name())
+			LogMessage("[World.AddSystems] trying to use bit %d for %s, but bit is already in use\n", config.ID, reflect.TypeOf(config.Component).Name())
 		}
 		w.systems[config.ID] = NewSystem(config.ID, config.Component, config.ForceAlignment)
 		w.systemsMask.Set(config.ID, true)
@@ -140,7 +139,7 @@ func (w *world) NewEntity() Entity {
 
 func (w *world) RemEntity(entity Entity) {
 	if entity < 1 {
-		log.Printf("[World.RemEntity] invalid entity id %d\n", entity)
+		LogMessage("[World.RemEntity] invalid entity id %d\n", entity)
 		return
 	}
 	mask := w.entities[entity]
@@ -154,17 +153,17 @@ func (w *world) RemEntity(entity Entity) {
 
 func (w *world) Assign(entity Entity, ids ...ID) {
 	if entity < 1 {
-		log.Printf("[World.Assign] invalid entity id %d\n", entity)
+		LogMessage("[World.Assign] invalid entity id %d\n", entity)
 		return
 	}
 	mask := w.entities[entity]
 	for _, id := range ids {
 		if id < 0 || id >= MaskTotalBits {
-			log.Printf("[World.Assign] invalid component id %d for entity %d\n", id, entity)
+			LogMessage("[World.Assign] invalid component id %d for entity %d\n", id, entity)
 			return
 		}
 		if w.systems[id] == nil {
-			log.Printf("[World.Assign] component id %d not registered in this world instance\n", id)
+			LogMessage("[World.Assign] component id %d not registered in this world instance\n", id)
 			return
 		}
 		w.systems[id].New(entity)
@@ -176,7 +175,7 @@ func (w *world) Assign(entity Entity, ids ...ID) {
 
 func (w *world) Remove(entity Entity, ids ...ID) {
 	if entity < 1 {
-		log.Printf("[World.Remove] invalid entity id %d\n", entity)
+		LogMessage("[World.Remove] invalid entity id %d\n", entity)
 		return
 	}
 	mask := w.entities[entity]
@@ -192,7 +191,7 @@ func (w *world) Remove(entity Entity, ids ...ID) {
 
 func (w *world) Component(entity Entity, compID ID) unsafe.Pointer {
 	if entity < 1 {
-		log.Printf("[World.Component] invalid entity id %d\n", entity)
+		LogMessage("[World.Component] invalid entity id %d\n", entity)
 		return nil
 	}
 	if compID < 0 || compID >= MaskTotalBits || w.systems[compID] == nil {
@@ -209,9 +208,9 @@ func (w *world) removeAndRecycleEntity(id ID) {
 
 func (w *world) NewFilter(ids ...ID) Filter {
 	filter := &entityFilter{
-		mask: NewMask(ids...),
+		mask:     NewMask(ids...),
 		entities: make([]Entity, 0),
-		world: w,
+		world:    w,
 	}
 
 	w.collectEntities(filter)
@@ -223,8 +222,8 @@ func (w *world) NewFilter(ids ...ID) Filter {
 func (w *world) RemFilter(filter Filter) {
 	for index, f := range w.filters {
 		if f == filter {
-			w.filters[index] = w.filters[len(w.filters) - 1]
-			w.filters = w.filters[:len(w.filters) - 1]
+			w.filters[index] = w.filters[len(w.filters)-1]
+			w.filters = w.filters[:len(w.filters)-1]
 			return
 		}
 	}
@@ -233,7 +232,7 @@ func (w *world) RemFilter(filter Filter) {
 func (w *world) collectEntities(filter *entityFilter) {
 	for index, mask := range w.entities[1:] {
 		if mask.Contains(filter.mask) {
-			filter.entities = append(filter.entities, Entity(index + 1))
+			filter.entities = append(filter.entities, Entity(index+1))
 		}
 	}
 	sort.Sort(filter.entities)
@@ -250,8 +249,8 @@ func (w *world) updateFilters(entity Entity, mask Mask, add bool) {
 				}
 			} else {
 				if index != filter.entities.Len() {
-					filter.entities[index] = filter.entities[filter.entities.Len() - 1]
-					filter.entities = filter.entities[:filter.entities.Len() - 1]
+					filter.entities[index] = filter.entities[filter.entities.Len()-1]
+					filter.entities = filter.entities[:filter.entities.Len()-1]
 					sort.Sort(filter.entities)
 				}
 			}

@@ -45,8 +45,6 @@ func NewSystem(id ID, objRef interface{}, forceAlignment int) System {
 func (s *system) New(id ID) unsafe.Pointer {
 	index := s.indices.Get(Index(id))
 	if index != InvalidIndex {
-		// var t *T
-		// log.Printf("[System[%s].New] trying to instantiate already used ID! (id: %d)\n", reflect.TypeOf(t), id)
 		return s.factory.Get(Index(index))
 	}
 	t, compId := s.factory.Alloc()
@@ -65,8 +63,6 @@ func (s *system) Recycle(id ID) {
 func (s *system) Get(id ID) unsafe.Pointer {
 	index := s.indices.Get(Index(id))
 	if index == InvalidIndex {
-		// var t *T
-		// log.Printf("[System[%s].New] trying to get not alloc'ed ID (id: %d)", reflect.TypeOf(t), id)
 		return nil
 	}
 	return s.factory.Get(Index(index))

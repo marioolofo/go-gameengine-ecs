@@ -16,12 +16,12 @@ const (
 )
 
 type UIDesign struct {
-	name string
+	name   string
 	config map[string]string
 }
 
 type Transform2D struct {
-	x, y float32
+	x, y        float32
 	orientation [4]float32
 }
 
@@ -35,12 +35,12 @@ type Script struct {
 
 func TestWorld(t *testing.T) {
 	config := []ComponentConfig{
-		{ UIDesignComponentID, 0, UIDesign{} },
-		{ Transform2DComponentID, 0, Transform2D{} },
-		{ Physics2DComponentID, 0, Physics2D{} },
-		{ ScriptComponentID, 0, Script{} },
-		{ ScriptComponentID, 0, Script{} },
-		{ 999, 0, Script{} },
+		{UIDesignComponentID, 0, UIDesign{}},
+		{Transform2DComponentID, 0, Transform2D{}},
+		{Physics2DComponentID, 0, Physics2D{}},
+		{ScriptComponentID, 0, Script{}},
+		{ScriptComponentID, 0, Script{}},
+		{999, 0, Script{}},
 	}
 
 	world := NewWorld(config...)
@@ -66,7 +66,7 @@ func TestWorld(t *testing.T) {
 			ids = append(ids, 999)
 		}
 		if rand.Float32() < 0.1 {
-			ids = append(ids, MaskTotalBits - 1)
+			ids = append(ids, MaskTotalBits-1)
 		}
 
 		world.Assign(entity, ids...)
@@ -89,7 +89,7 @@ func TestWorld(t *testing.T) {
 
 		tr := (*Transform2D)(world.Component(entity, Transform2DComponentID))
 		if tr != nil {
-			diff := tr.x + tr.y - float32(i * 3)
+			diff := tr.x + tr.y - float32(i*3)
 			if diff < -0.0001 || diff > 0.0001 {
 				t.Errorf("entity %d don't have the correct values for component Transform2D (received %v)\n", i, tr)
 			}
@@ -113,9 +113,9 @@ func TestWorld(t *testing.T) {
 
 func TestWorldUpdateCycle(t *testing.T) {
 	config := []ComponentConfig{
-		{ Transform2DComponentID, 0, Transform2D{} },
-		{ Physics2DComponentID, 0, Physics2D{} },
-		{ ScriptComponentID, 0, Script{} },
+		{Transform2DComponentID, 0, Transform2D{}},
+		{Physics2DComponentID, 0, Physics2D{}},
+		{ScriptComponentID, 0, Script{}},
 	}
 
 	world := NewWorld(config...)
@@ -164,7 +164,7 @@ func TestWorldUpdateCycle(t *testing.T) {
 
 func TestWorldEntityID(t *testing.T) {
 	config := []ComponentConfig{
-		{ Transform2DComponentID, 0, Transform2D{} },
+		{Transform2DComponentID, 0, Transform2D{}},
 	}
 	world := NewWorld(config...)
 
@@ -177,7 +177,7 @@ func TestWorldEntityID(t *testing.T) {
 	world.Remove(0, Transform2DComponentID)
 
 	invalidComponentPtr := world.Component(0, Transform2DComponentID)
-	if  invalidComponentPtr != nil {
+	if invalidComponentPtr != nil {
 		t.Error("expected nil, received valid component for invalid entity")
 	}
 

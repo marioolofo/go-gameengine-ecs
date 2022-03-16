@@ -72,7 +72,7 @@ func (s *sparseArray) Invalidate(index Index) {
 func (s *sparseArray) ensureCapacity(size int) {
 	length := len(s.values)
 	if size >= length {
-		s.values = append(s.values, make([]Index, size - length + 1) ...)
+		s.values = append(s.values, make([]Index, size-length+1)...)
 		for i := length; i <= size; i++ {
 			s.values[i] = InvalidIndex
 		}
@@ -82,7 +82,7 @@ func (s *sparseArray) ensureCapacity(size int) {
 func (m *mapArray) Get(index Index) Index {
 	value, exists := m.values[index]
 	if !exists {
-		// log.Printf("[SparseMapArray.Get] Trying to access invalid index (index: %d)\n", index)
+		LogMessage("[SparseMapArray.Get] Trying to access invalid index (index: %d)\n", index)
 		return InvalidIndex
 	}
 	return value
