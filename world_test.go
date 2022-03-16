@@ -46,7 +46,7 @@ func TestWorld(t *testing.T) {
 	world := NewWorld(config...)
 	entities := make([]Entity, 100000, 100000)
 
-	for i := 0; i < 100000; i++ {
+	for i := 1; i < 100000; i++ {
 		entity := world.NewEntity()
 		world.Assign(entity, Transform2DComponentID)
 
@@ -84,7 +84,7 @@ func TestWorld(t *testing.T) {
 		}
 	}
 
-	for i := 0; i < 100000; i++ {
+	for i := 1; i < 100000; i++ {
 		entity := entities[i]
 
 		tr := (*Transform2D)(world.Component(entity, Transform2DComponentID))
@@ -159,5 +159,45 @@ func TestWorldUpdateCycle(t *testing.T) {
 		if world.Component(entity, ScriptComponentID) == nil {
 			t.Errorf("update for group received invalid entity (e %d)\n", entity)
 		}
+	}
+}
+
+func TestWorldEntityID(t *testing.T) {
+	config := []ComponentConfig{
+		{ Transform2DComponentID, 0, Transform2D{} },
+	}
+	world := NewWorld(config...)
+
+	entity := world.NewEntity()
+	if entity < 1 {
+		t.Error("entity ID starting at wrong index:", entity)
+	}
+
+	world.Assign(0, Transform2DComponentID)
+	world.Remove(0, Transform2DComponentID)
+
+	invalidComponentPtr := world.Component(0, Transform2DComponentID)
+	if  invalidComponentPtr != nil {
+		t.Error("expected nil, received valid component for invalid entity")
+	}
+
+	filter := world.NewFilter()
+
+	if len(filter.Entities()) != 1 {
+		t.Errorf("expected filter with 1 entity, received %d", len(filter.Entities()))
+	}
+
+	world.RemEntity(entity)
+
+	if len(filter.Entities()) != 0 {
+		t.Errorf("expected filter with no entity, received %d", len(filter.Entities()))
+	}
+
+	world.RemEntity(0)
+
+	entity = world.NewEntity()
+	entity2 := world.NewEntity()
+	if entity != 1 || entity2 != 2 {
+		t.Errorf("expected entities IDs 1 & 2, received %d & %d", entity, entity2)
 	}
 }

@@ -100,7 +100,7 @@ func NewWorld(configs ...ComponentConfig) World {
 	w := &world {
 		0,
 		make([]ID, 0, InitialEntityRecycleCapacity),
-		make([]Mask, 0, InitialEntityCapacity),
+		make([]Mask, 1, InitialEntityCapacity),
 		[MaskTotalBits]System{},
 		make([]*entityFilter, 0),
 	}
@@ -139,6 +139,10 @@ func (w *world) NewEntity() Entity {
 }
 
 func (w *world) RemEntity(entity Entity) {
+	if entity < 1 {
+		log.Printf("[World.RemEntity] invalid entity id %d\n", entity)
+		return
+	}
 	mask := w.entities[entity]
 	lastBit := mask.NextBitSet(0)
 	for lastBit < MaskTotalBits {
@@ -149,14 +153,18 @@ func (w *world) RemEntity(entity Entity) {
 }
 
 func (w *world) Assign(entity Entity, ids ...ID) {
+	if entity < 1 {
+		log.Printf("[World.Assign] invalid entity id %d\n", entity)
+		return
+	}
 	mask := w.entities[entity]
 	for _, id := range ids {
 		if id < 0 || id >= MaskTotalBits {
-			log.Printf("[World.NewEntity] invalid component id %d for entity %d\n", id, entity)
+			log.Printf("[World.Assign] invalid component id %d for entity %d\n", id, entity)
 			return
 		}
 		if w.systems[id] == nil {
-			log.Printf("[World.NewEntity] component id %d not registered in this world instance\n", id)
+			log.Printf("[World.Assign] component id %d not registered in this world instance\n", id)
 			return
 		}
 		w.systems[id].New(entity)
@@ -167,6 +175,10 @@ func (w *world) Assign(entity Entity, ids ...ID) {
 }
 
 func (w *world) Remove(entity Entity, ids ...ID) {
+	if entity < 1 {
+		log.Printf("[World.Remove] invalid entity id %d\n", entity)
+		return
+	}
 	mask := w.entities[entity]
 	for _, id := range ids {
 		if w.systems[id] != nil {
@@ -179,6 +191,10 @@ func (w *world) Remove(entity Entity, ids ...ID) {
 }
 
 func (w *world) Component(entity Entity, compID ID) unsafe.Pointer {
+	if entity < 1 {
+		log.Printf("[World.Component] invalid entity id %d\n", entity)
+		return nil
+	}
 	if compID < 0 || compID >= MaskTotalBits || w.systems[compID] == nil {
 		return nil
 	}
@@ -215,9 +231,9 @@ func (w *world) RemFilter(filter Filter) {
 }
 
 func (w *world) collectEntities(filter *entityFilter) {
-	for index, mask := range w.entities {
+	for index, mask := range w.entities[1:] {
 		if mask.Contains(filter.mask) {
-			filter.entities = append(filter.entities, Entity(index))
+			filter.entities = append(filter.entities, Entity(index + 1))
 		}
 	}
 	sort.Sort(filter.entities)

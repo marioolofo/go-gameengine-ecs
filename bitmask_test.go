@@ -87,7 +87,7 @@ func TestBitmaskSearch(t *testing.T) {
 	}
 }
 
-func FuzzBitmaskSearchAndCount(t* testing.T) {
+func TestBitmaskSearchAndCount(t* testing.T) {
 	randomBits := make([]uint, 10)
 
 	randomBits = append(randomBits, 0)
