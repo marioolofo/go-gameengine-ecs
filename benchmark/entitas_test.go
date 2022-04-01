@@ -35,14 +35,14 @@ func (t *Transform) Executer() {
 	}
 }
 
-func BenchmarkEntitas(b *testing.B) {
+func EntitasBench(b *testing.B, entityCount, updateCount int) {
 	contexts := ecs.CreateContexts()
 	game := contexts.Entitas()
 
 	systems := ecs.CreateSystemPool()
 	systems.Add(&Transform{})
 
-	for i := 0; i < BenchEntityCount; i++ {
+	for i := 0; i < entityCount / 2; i++ {
 		name := fmt.Sprint("entity_", i)
 		e1 := game.CreateEntity()
 		e1.AddEScript(0)
@@ -55,8 +55,81 @@ func BenchmarkEntitas(b *testing.B) {
 
 	systems.Init(contexts)
 
-	for i := 0; i < BenchUpdateCount; i++ {
+	for i := 0; i < updateCount; i++ {
 		systems.Execute()
 		systems.Clean()
 	}
 }
+
+// 0 updates
+
+func BenchmarkEntitas_100_entities_0_updates(b *testing.B) {
+	EntitasBench(b, 100, 0)
+}
+
+func BenchmarkEntitas_1000_entities_0_updates(b *testing.B) {
+	EntitasBench(b, 1000, 0)
+}
+
+func BenchmarkEntitas_10000_entities_0_updates(b *testing.B) {
+	EntitasBench(b, 10000, 0)
+}
+
+func BenchmarkEntitas_100000_entities_0_updates(b *testing.B) {
+	EntitasBench(b, 100000, 0)
+}
+
+// 100 updates
+
+func BenchmarkEntitas_100_entities_100_updates(b *testing.B) {
+	EntitasBench(b, 100, 100)
+}
+
+func BenchmarkEntitas_1000_entities_100_updates(b *testing.B) {
+	EntitasBench(b, 1000, 100)
+}
+
+func BenchmarkEntitas_10000_entities_100_updates(b *testing.B) {
+	EntitasBench(b, 10000, 100)
+}
+
+func BenchmarkEntitas_100000_entities_100_updates(b *testing.B) {
+	EntitasBench(b, 100000, 100)
+}
+
+// 1000 updates
+
+func BenchmarkEntitas_100_entities_1000_updates(b *testing.B) {
+	EntitasBench(b, 100, 1000)
+}
+
+func BenchmarkEntitas_1000_entities_1000_updates(b *testing.B) {
+	EntitasBench(b, 1000, 1000)
+}
+
+func BenchmarkEntitas_10000_entities_1000_updates(b *testing.B) {
+	EntitasBench(b, 10000, 1000)
+}
+
+func BenchmarkEntitas_100000_entities_1000_updates(b *testing.B) {
+	EntitasBench(b, 100000, 1000)
+}
+
+// 10000 updates
+
+func BenchmarkEntitas_100_entities_10000_updates(b *testing.B) {
+	EntitasBench(b, 100, 10000)
+}
+
+func BenchmarkEntitas_1000_entities_10000_updates(b *testing.B) {
+	EntitasBench(b, 1000, 10000)
+}
+
+func BenchmarkEntitas_10000_entities_10000_updates(b *testing.B) {
+	EntitasBench(b, 10000, 10000)
+}
+
+func BenchmarkEntitas_100000_entities_10000_updates(b *testing.B) {
+	EntitasBench(b, 100000, 10000)
+}
+

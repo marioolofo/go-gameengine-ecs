@@ -13,7 +13,7 @@ const (
 )
 
 const (
-	BenchEntityCount = 10000
+	BenchEntityCount = 1000
 	BenchUpdateCount = 1000
 
 	dt = float32(1.0 / 60.0)

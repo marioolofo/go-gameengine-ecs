@@ -7,7 +7,7 @@ import (
 	"github.com/marioolofo/go-gameengine-ecs"
 )
 
-func BenchmarkGameEngineECS(b *testing.B) {
+func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 	config := []ecs.ComponentConfig{
 		{ID: UIDesignComponentID, Component: UIDesign{}},
 		{ID: Transform2DComponentID, Component: Transform2D{}},
@@ -17,7 +17,7 @@ func BenchmarkGameEngineECS(b *testing.B) {
 
 	world := ecs.NewWorld(config...)
 
-	for i := 0; i < BenchEntityCount; i++ {
+	for i := 0; i < entityCount / 2; i++ {
 		e1 := world.NewEntity()
 		world.Assign(e1, UIDesignComponentID, ScriptComponentID)
 		design := (*UIDesign)(world.Component(e1, UIDesignComponentID))
@@ -34,7 +34,7 @@ func BenchmarkGameEngineECS(b *testing.B) {
 		filter = world.NewFilter(Transform2DComponentID, Physics2DComponentID)
 	}
 
-	for i := 0; i < BenchUpdateCount; i++ {
+	for i := 0; i < updateCount; i++ {
 		for _, entity := range filter.Entities() {
 			phys := (*Physics2D)(world.Component(entity, Physics2DComponentID))
 			tr := (*Transform2D)(world.Component(entity, Transform2DComponentID))
@@ -50,3 +50,76 @@ func BenchmarkGameEngineECS(b *testing.B) {
 		}
 	}
 }
+
+// 0 updates
+
+func BenchmarkGameEngineECS_100_entities_0_updates(b *testing.B) {
+	GameEngineECSBench(b, 100, 0)
+}
+
+func BenchmarkGameEngineECS_1000_entities_0_updates(b *testing.B) {
+	GameEngineECSBench(b, 1000, 0)
+}
+
+func BenchmarkGameEngineECS_10000_entities_0_updates(b *testing.B) {
+	GameEngineECSBench(b, 10000, 0)
+}
+
+func BenchmarkGameEngineECS_100000_entities_0_updates(b *testing.B) {
+	GameEngineECSBench(b, 100000, 0)
+}
+
+// 100 updates
+
+func BenchmarkGameEngineECS_100_entities_100_updates(b *testing.B) {
+	GameEngineECSBench(b, 100, 100)
+}
+
+func BenchmarkGameEngineECS_1000_entities_100_updates(b *testing.B) {
+	GameEngineECSBench(b, 1000, 100)
+}
+
+func BenchmarkGameEngineECS_10000_entities_100_updates(b *testing.B) {
+	GameEngineECSBench(b, 10000, 100)
+}
+
+func BenchmarkGameEngineECS_100000_entities_100_updates(b *testing.B) {
+	GameEngineECSBench(b, 100000, 100)
+}
+
+// 1000 updates
+
+func BenchmarkGameEngineECS_100_entities_1000_updates(b *testing.B) {
+	GameEngineECSBench(b, 100, 1000)
+}
+
+func BenchmarkGameEngineECS_1000_entities_1000_updates(b *testing.B) {
+	GameEngineECSBench(b, 1000, 1000)
+}
+
+func BenchmarkGameEngineECS_10000_entities_1000_updates(b *testing.B) {
+	GameEngineECSBench(b, 10000, 1000)
+}
+
+func BenchmarkGameEngineECS_100000_entities_1000_updates(b *testing.B) {
+	GameEngineECSBench(b, 100000, 1000)
+}
+
+// 10000 updates
+
+func BenchmarkGameEngineECS_100_entities_10000_updates(b *testing.B) {
+	GameEngineECSBench(b, 100, 10000)
+}
+
+func BenchmarkGameEngineECS_1000_entities_10000_updates(b *testing.B) {
+	GameEngineECSBench(b, 1000, 10000)
+}
+
+func BenchmarkGameEngineECS_10000_entities_10000_updates(b *testing.B) {
+	GameEngineECSBench(b, 10000, 10000)
+}
+
+func BenchmarkGameEngineECS_100000_entities_10000_updates(b *testing.B) {
+	GameEngineECSBench(b, 100000, 10000)
+}
+

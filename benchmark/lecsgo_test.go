@@ -6,10 +6,10 @@ import (
 	_ "github.com/leopotam/go-ecs"
 )
 
-func BenchmarkLecsGO(b *testing.B) {
+func LecsGOBench(b *testing.B, entityCount, updateCount int) {
 	world := NewLecsGOWorld(256)
 
-	for i := 0; i < BenchEntityCount; i++ {
+	for i := 0; i < entityCount / 2; i++ {
 		e1 := world.NewEntity()
 		world.SetScript(e1)
 		design := world.SetUIDesign(e1)
@@ -21,7 +21,7 @@ func BenchmarkLecsGO(b *testing.B) {
 		phys.velocity = Vec2D{x: 2, y: 1.5}
 	}
 
-	for i := 0; i < BenchUpdateCount; i++ {
+	for i := 0; i < updateCount; i++ {
 		for _, entity := range world.WithPhysTransform().Entities() {
 			phys := world.GetPhysics2D(entity)
 			tr := world.GetTransform2D(entity)
@@ -38,3 +38,76 @@ func BenchmarkLecsGO(b *testing.B) {
 	}
 	world.Destroy()
 }
+
+// 0 updates
+
+func BenchmarkLecsGO_100_entities_0_updates(b *testing.B) {
+	LecsGOBench(b, 100, 0)
+}
+
+func BenchmarkLecsGO_1000_entities_0_updates(b *testing.B) {
+	LecsGOBench(b, 1000, 0)
+}
+
+func BenchmarkLecsGO_10000_entities_0_updates(b *testing.B) {
+	LecsGOBench(b, 10000, 0)
+}
+
+func BenchmarkLecsGO_100000_entities_0_updates(b *testing.B) {
+	LecsGOBench(b, 100000, 0)
+}
+
+// 100 updates
+
+func BenchmarkLecsGO_100_entities_100_updates(b *testing.B) {
+	LecsGOBench(b, 100, 100)
+}
+
+func BenchmarkLecsGO_1000_entities_100_updates(b *testing.B) {
+	LecsGOBench(b, 1000, 100)
+}
+
+func BenchmarkLecsGO_10000_entities_100_updates(b *testing.B) {
+	LecsGOBench(b, 10000, 100)
+}
+
+func BenchmarkLecsGO_100000_entities_100_updates(b *testing.B) {
+	LecsGOBench(b, 100000, 100)
+}
+
+// 1000 updates
+
+func BenchmarkLecsGO_100_entities_1000_updates(b *testing.B) {
+	LecsGOBench(b, 100, 1000)
+}
+
+func BenchmarkLecsGO_1000_entities_1000_updates(b *testing.B) {
+	LecsGOBench(b, 1000, 1000)
+}
+
+func BenchmarkLecsGO_10000_entities_1000_updates(b *testing.B) {
+	LecsGOBench(b, 10000, 1000)
+}
+
+func BenchmarkLecsGO_100000_entities_1000_updates(b *testing.B) {
+	LecsGOBench(b, 100000, 1000)
+}
+
+// 10000 updates
+
+func BenchmarkLecsGO_100_entities_10000_updates(b *testing.B) {
+	LecsGOBench(b, 100, 10000)
+}
+
+func BenchmarkLecsGO_1000_entities_10000_updates(b *testing.B) {
+	LecsGOBench(b, 1000, 10000)
+}
+
+func BenchmarkLecsGO_10000_entities_10000_updates(b *testing.B) {
+	LecsGOBench(b, 10000, 10000)
+}
+
+func BenchmarkLecsGO_100000_entities_10000_updates(b *testing.B) {
+	LecsGOBench(b, 100000, 10000)
+}
+
