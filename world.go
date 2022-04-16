@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"reflect"
-	"sort"
 	"unsafe"
 )
 
@@ -46,6 +45,12 @@ type Filter interface {
 //
 // Component returns the pointer of component for entity if it exists, nil otherwise
 //
+// Lock defer world updates to filters until Unlock is called
+// References for components added to world inside locked scope are valid to be used and stored
+//
+// Unlock collect the world changes and update the filters
+// World only unlocks when you call this function the same amount of times you called Lock
+//
 // NewFilter returns a filter that contains all entities with the desired components
 // The filter is automatically updated when new entities or components are added/removed from the World
 //
@@ -61,36 +66,29 @@ type World interface {
 	Remove(entity Entity, components ...ID)
 	Component(e Entity, component ID) unsafe.Pointer
 
+	Lock()
+	Unlock()
+
 	NewFilter(components ...ID) Filter
 	RemFilter(filter Filter)
 }
 
-type Entities []Entity
-
-type entityFilter struct {
-	mask     Mask
-	world    World
-	entities Entities
-}
-
-func (e Entities) Len() int           { return len(e) }
-func (e Entities) Less(a, b int) bool { return e[a] < e[b] }
-func (e Entities) Swap(a, b int)      { e[a], e[b] = e[b], e[a] }
-
-func (e *entityFilter) Entities() []Entity {
-	return e.entities
-}
-
-func (e *entityFilter) World() World {
-	return e.world
+type EntityMaskPair struct {
+	entity ID
+	mask   Mask
 }
 
 type world struct {
-	systemsMask Mask
-	recycleIDs  []ID
-	entities    []Mask
-	systems     [MaskTotalBits]System
-	filters     []*entityFilter
+	systemsMask        Mask
+	recycleIDs         []ID
+	entities           []Mask
+	systems            [MaskTotalBits]System
+	filters            []*entityFilter
+	entityRemoveIndex  []int
+	lock               int
+	remEntitiesQueue   []Entity
+	eventsQueue        []EntityMaskPair
+	eventsQueueAdding  []bool
 }
 
 // NewWorld returns a new World with Systems created for configs
@@ -102,6 +100,11 @@ func NewWorld(configs ...ComponentConfig) World {
 		make([]Mask, 1, InitialEntityCapacity),
 		[MaskTotalBits]System{},
 		make([]*entityFilter, 0),
+		make([]int, 0, 100),
+		0,
+		make([]Entity, 0),
+		make([]EntityMaskPair, 0, 100),
+		make([]bool, 0, 100),
 	}
 
 	w.RegisterComponents(configs...)
@@ -126,6 +129,8 @@ func (w *world) RegisterComponents(configs ...ComponentConfig) {
 func (w *world) NewEntity() Entity {
 	var id ID
 
+	// It's safe to use the recycleIDs entities even if the world is locked, as it contains
+	// IDs removed before the Lock was called
 	if len(w.recycleIDs) > 0 {
 		id = w.recycleIDs[len(w.recycleIDs)-1]
 		w.recycleIDs = w.recycleIDs[:len(w.recycleIDs)-1]
@@ -142,13 +147,24 @@ func (w *world) RemEntity(entity Entity) {
 		LogMessage("[World.RemEntity] invalid entity id %d\n", entity)
 		return
 	}
-	mask := w.entities[entity]
-	lastBit := mask.NextBitSet(0)
-	for lastBit < MaskTotalBits {
-		w.systems[lastBit].Recycle(entity)
-		lastBit = mask.NextBitSet(lastBit + 1)
+	if !w.assertEntityExists(
+		entity,
+		"Trying to re entity that's not in use (entity %d)\n",
+		"Trying to remove entity that's already removed inside locked scope (entity %d)\n") {
+		return
 	}
-	w.removeAndRecycleEntity(entity)
+
+	// We recycle the entities only when the world is unlocked to prevent
+	// invalidate the references to components when iterating filters
+	if w.lock > 0 {
+		w.remEntitiesQueue = append(w.remEntitiesQueue, entity)
+		w.eventsQueue = append(w.eventsQueue, EntityMaskPair{entity, w.entities[entity]})
+		w.eventsQueueAdding = append(w.eventsQueueAdding, false)
+		w.entities[entity] = Mask(0);
+	} else {
+		w.remComponentsFromEntities(entity)
+		w.recycleEntitiesAndUpdateFilters(entity)
+	}
 }
 
 func (w *world) Assign(entity Entity, ids ...ID) {
@@ -156,6 +172,84 @@ func (w *world) Assign(entity Entity, ids ...ID) {
 		LogMessage("[World.Assign] invalid entity id %d\n", entity)
 		return
 	}
+	if !w.assertEntityExists(
+		entity,
+		"Trying to assign components to invalid entity (entity %d)\n",
+		"Trying to assign components to invalid entity in locked scope (entity %d)\n") {
+		return
+	}
+
+	w.assign(entity, ids...)
+
+	if w.lock > 0 {
+		w.eventsQueue = append(w.eventsQueue, EntityMaskPair{entity, w.entities[entity]})
+		w.eventsQueueAdding = append(w.eventsQueueAdding, true)
+	} else {
+		w.updateFilters(true, EntityMaskPair{entity, w.entities[entity]})
+	}
+}
+
+func (w *world) Remove(entity Entity, ids ...ID) {
+	if entity < 1 {
+		LogMessage("[World.Remove] invalid entity id %d\n", entity)
+		return
+	}
+	if !w.assertEntityExists(
+		entity,
+		"Trying to remove components from invalid entity (entity %d)\n",
+		"Trying to remove components from invalid entity in locked scope (entity %d)\n") {
+		return
+	}
+
+	if w.lock > 0 {
+		mask := NewMask(ids...)
+		w.eventsQueue = append(w.eventsQueue, EntityMaskPair{entity, mask})
+		w.eventsQueueAdding = append(w.eventsQueueAdding, false)
+		w.entities[entity] &= ^mask
+	} else {
+		w.remove(entity, NewMask(ids...))
+	 	w.updateFilters(false, EntityMaskPair{entity, w.entities[entity]})
+	}
+}
+
+func (w *world) Component(entity Entity, compID ID) unsafe.Pointer {
+	if entity < 1 {
+		LogMessage("[World.Component] invalid entity id %d\n", entity)
+		return nil
+	}
+	if compID < 0 || compID >= MaskTotalBits || w.systems[compID] == nil {
+		return nil
+	}
+	return w.systems[compID].Get(entity)
+}
+
+func (w *world) Lock() {
+	w.lock++
+}
+
+func (w *world) Unlock() {
+	if w.lock > 0 {
+		w.lock--
+		if w.lock == 0 {
+			w.updateFiltersAfterUnlock()
+		}
+	} else {
+		LogMessage("[World.Unlock] world already unlocked!")
+	}
+}
+
+func (w *world) remComponentsFromEntities(entities ...Entity) {
+	for _, entity := range entities {
+		mask := w.entities[entity]
+		lastBit := mask.NextBitSet(0)
+		for lastBit < MaskTotalBits {
+			w.systems[lastBit].Recycle(entity)
+			lastBit = mask.NextBitSet(lastBit + 1)
+		}
+	}
+}
+
+func (w *world) assign(entity Entity, ids ...ID) {
 	mask := w.entities[entity]
 	for _, id := range ids {
 		if id < 0 || id >= MaskTotalBits {
@@ -170,90 +264,23 @@ func (w *world) Assign(entity Entity, ids ...ID) {
 		mask.Set(id, true)
 	}
 	w.entities[entity] = mask
-	w.updateFilters(entity, mask, true)
 }
 
-func (w *world) Remove(entity Entity, ids ...ID) {
-	if entity < 1 {
-		LogMessage("[World.Remove] invalid entity id %d\n", entity)
-		return
-	}
-	mask := w.entities[entity]
-	for _, id := range ids {
-		if w.systems[id] != nil {
-			w.systems[id].Recycle(id)
+func (w *world) remove(entity Entity, removeMask Mask) {
+	lastBit := removeMask.NextBitSet(0)
+	for lastBit < MaskTotalBits {
+		if w.systems[lastBit] != nil {
+			w.systems[lastBit].Recycle(entity)
 		}
-		mask.Set(id, false)
+		lastBit = removeMask.NextBitSet(lastBit + 1)
 	}
-	w.entities[entity] = mask
-	w.updateFilters(entity, mask, false)
+	w.entities[entity] &= ^removeMask
 }
 
-func (w *world) Component(entity Entity, compID ID) unsafe.Pointer {
-	if entity < 1 {
-		LogMessage("[World.Component] invalid entity id %d\n", entity)
-		return nil
+func (w *world) recycleEntitiesAndUpdateFilters(entities ...Entity) {
+	for _, entity := range entities {
+		w.updateFilters(false, EntityMaskPair{entity, w.entities[entity]})
+		w.entities[entity] = Mask(0)
 	}
-	if compID < 0 || compID >= MaskTotalBits || w.systems[compID] == nil {
-		return nil
-	}
-	return w.systems[compID].Get(entity)
-}
-
-func (w *world) removeAndRecycleEntity(id ID) {
-	w.recycleIDs = append(w.recycleIDs, id)
-	w.updateFilters(id, w.entities[id], false)
-	w.entities[id] = Mask(0)
-}
-
-func (w *world) NewFilter(ids ...ID) Filter {
-	filter := &entityFilter{
-		mask:     NewMask(ids...),
-		entities: make([]Entity, 0),
-		world:    w,
-	}
-
-	w.collectEntities(filter)
-
-	w.filters = append(w.filters, filter)
-	return filter
-}
-
-func (w *world) RemFilter(filter Filter) {
-	for index, f := range w.filters {
-		if f == filter {
-			w.filters[index] = w.filters[len(w.filters)-1]
-			w.filters = w.filters[:len(w.filters)-1]
-			return
-		}
-	}
-}
-
-func (w *world) collectEntities(filter *entityFilter) {
-	for index, mask := range w.entities[1:] {
-		if mask.Contains(filter.mask) {
-			filter.entities = append(filter.entities, Entity(index+1))
-		}
-	}
-	sort.Sort(filter.entities)
-}
-
-func (w *world) updateFilters(entity Entity, mask Mask, add bool) {
-	for _, filter := range w.filters {
-		if mask.Contains(filter.mask) {
-			index := sort.Search(len(filter.entities), func(ind int) bool { return filter.entities[ind] == entity })
-			if add {
-				if index == len(filter.entities) {
-					filter.entities = append(filter.entities, entity)
-					sort.Sort(filter.entities)
-				}
-			} else {
-				if index != filter.entities.Len() {
-					filter.entities[index] = filter.entities[filter.entities.Len()-1]
-					filter.entities = filter.entities[:filter.entities.Len()-1]
-					sort.Sort(filter.entities)
-				}
-			}
-		}
-	}
+	w.recycleIDs = append(w.recycleIDs, entities...)
 }

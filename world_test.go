@@ -33,7 +33,7 @@ type Script struct {
 	filePath string
 }
 
-func TestWorld(t *testing.T) {
+func TestWorldCore(t *testing.T) {
 	config := []ComponentConfig{
 		{UIDesignComponentID, 0, UIDesign{}},
 		{Transform2DComponentID, 0, Transform2D{}},
@@ -108,57 +108,6 @@ func TestWorld(t *testing.T) {
 	// IDs são reciclados do ultimo pro primeiro:
 	if newEntity != Entity(99999) {
 		t.Errorf("expected entity recycle for id 1, received %d\n", newEntity)
-	}
-}
-
-func TestWorldUpdateCycle(t *testing.T) {
-	config := []ComponentConfig{
-		{Transform2DComponentID, 0, Transform2D{}},
-		{Physics2DComponentID, 0, Physics2D{}},
-		{ScriptComponentID, 0, Script{}},
-	}
-
-	world := NewWorld(config...)
-
-	filter := world.NewFilter(Transform2DComponentID)
-
-	e1 := world.NewEntity()
-	world.Assign(e1, Transform2DComponentID)
-	e2 := world.NewEntity()
-	world.Assign(e2, Transform2DComponentID, Physics2DComponentID)
-	e1 = world.NewEntity()
-	world.Assign(e1, Transform2DComponentID, ScriptComponentID)
-
-	if filter.World() != world {
-		t.Error("filter.World() is different from world!")
-	}
-
-	if len(filter.Entities()) != 3 {
-		t.Errorf("world.filter with invalid entitie len (expected 3, got %d)\n", len(filter.Entities()))
-	}
-
-	for _, entity := range filter.Entities() {
-		if world.Component(entity, Transform2DComponentID) == nil {
-			t.Errorf("update for group received invalid entity (e %d)\n", entity)
-		}
-	}
-
-	filter2 := world.NewFilter(ScriptComponentID)
-
-	world.RemEntity(e2)
-	e2 = world.NewEntity()
-	world.Assign(e2, ScriptComponentID)
-
-	world.RemFilter(filter)
-
-	if len(filter2.Entities()) != 2 {
-		t.Errorf("world.filter with invalid entitie len (expected 1, got %d)\n", len(filter.Entities()))
-	}
-
-	for _, entity := range filter2.Entities() {
-		if world.Component(entity, ScriptComponentID) == nil {
-			t.Errorf("update for group received invalid entity (e %d)\n", entity)
-		}
 	}
 }
 

@@ -26,8 +26,13 @@ var (
 	InitialMemoryPoolCapacityShift = 10
 	InitialMemoryPoolCapacity      = 1 << InitialMemoryPoolCapacityShift
 )
+
 var (
 	LogEnabled = true
+	// WorldAssertActions asserts that actions inside locked scope will not break the world
+	// Disable this when you're sure that no actions are inconsistent (for example,
+	// adding components to already removed entity)
+	WorldAssertActions = true
 )
 
 func LogMessage(format string, v ...interface{}) {
