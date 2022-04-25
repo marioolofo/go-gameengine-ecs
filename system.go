@@ -17,6 +17,8 @@ import "unsafe"
 // Zero fills the contents of id's component data with zeros
 //
 // Reset discards all memory used and sets the system to its initial state
+//
+// Stats returns the status of sparse array and memory pool in use
 type System interface {
 	New(id ID) unsafe.Pointer
 	Recycle(id ID)
@@ -24,6 +26,13 @@ type System interface {
 	Set(id ID, i interface{})
 	Zero(id ID)
 	Reset()
+	Stats() SystemStats
+}
+
+// SystemStats is the status of the sparse array and memory pool of the system
+type SystemStats struct {
+	MemStats          MemoryPoolStats
+	SparseArrayLength uint
 }
 
 type system struct {
@@ -85,4 +94,11 @@ func (s *system) Zero(id ID) {
 func (s *system) Reset() {
 	s.indices.Reset()
 	s.factory.Reset()
+}
+
+func (s *system) Stats() SystemStats {
+	return SystemStats{
+		s.factory.Stats(),
+		s.indices.Length(),
+	}
 }

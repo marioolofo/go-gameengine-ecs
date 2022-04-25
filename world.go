@@ -56,6 +56,10 @@ type Filter interface {
 //
 // RemFilter removes the filter from the World
 // The filter may be used after the removal, but the data may become outdated and invalid after world updates
+//
+// EntityStats collects entity statistics from the World
+// ComponentStats collects component statistics from the World
+// Stats collects all statistics from the World
 type World interface {
 	RegisterComponents(configs ...ComponentConfig)
 
@@ -71,6 +75,25 @@ type World interface {
 
 	NewFilter(components ...ID) Filter
 	RemFilter(filter Filter)
+
+	EntityStats() WorldEntityStats
+	ComponentStats(component ID) SystemStats
+	Stats() WorldStats
+}
+
+// WorldEntityStats is the runtime statistics of entities in the World
+type WorldEntityStats struct {
+	Total    uint   // Total entities allocated
+	InUse    uint   // Total entities currently in use
+	Recycled uint   // Total entities in recycle list
+}
+
+// WorldStatus gives real time statistics of the World
+type WorldStats struct {
+	EntityStats    WorldEntityStats
+	ComponentStats [MaskTotalBits]SystemStats
+	ComponentCount uint // Number of valid components in ComponentStats array
+	Lock           int  // > 0 if the World is inside locked state
 }
 
 type EntityMaskPair struct {
@@ -236,6 +259,44 @@ func (w *world) Unlock() {
 	} else {
 		LogMessage("[World.Unlock] world already unlocked!")
 	}
+}
+
+
+func (w *world) EntityStats() WorldEntityStats {
+	total := uint(len(w.entities)) - 1 // -1 because index 0 is unused
+	recycled := uint(len(w.recycleIDs))
+
+	return WorldEntityStats{
+		Total: total,
+		InUse: total - recycled,
+		Recycled: recycled,
+	}
+}
+
+func (w *world) ComponentStats(id ID) SystemStats {
+	if id < 0 || id >= MaskTotalBits {
+		LogMessage("[World.ComponentStats] invalid component id %d\n", id)
+		return SystemStats{}
+	}
+
+	return w.systems[id].Stats()
+}
+
+func (w *world) Stats() WorldStats {
+	stats := WorldStats{
+		Lock: w.lock,
+		EntityStats: w.EntityStats(),
+	}
+	stats.ComponentCount = 0
+
+	lastBit := w.systemsMask.NextBitSet(0)
+	for lastBit < MaskTotalBits {
+		stats.ComponentStats[stats.ComponentCount] = w.ComponentStats(ID(lastBit))
+		stats.ComponentCount++
+		lastBit = w.systemsMask.NextBitSet(lastBit + 1)
+	}
+
+	return stats
 }
 
 func (w *world) remComponentsFromEntities(entities ...Entity) {

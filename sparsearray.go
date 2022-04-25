@@ -12,11 +12,14 @@ package ecs
 // Invalidate sets the index with value InvalidIndex
 //
 // Reset discards the mapping array and sets the SparseArray to its initial state
+//
+// Length returns the capacity of the sparse array
 type SparseArray interface {
 	Get(index Index) Index
 	Set(index, value Index)
 	Invalidate(Index)
 	Reset()
+	Length() uint
 }
 
 type sparseArray struct {
@@ -69,6 +72,10 @@ func (s *sparseArray) Invalidate(index Index) {
 	}
 }
 
+func (s *sparseArray) Length() uint {
+	return uint(len(s.values))
+}
+
 func (s *sparseArray) ensureCapacity(size int) {
 	length := len(s.values)
 	if size >= length {
@@ -98,4 +105,8 @@ func (m *mapArray) Reset() {
 
 func (m *mapArray) Invalidate(index Index) {
 	m.values[index] = InvalidIndex
+}
+
+func (m *mapArray) Length() uint {
+	return uint(len(m.values))
 }

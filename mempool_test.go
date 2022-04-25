@@ -133,3 +133,58 @@ func TestMemPoolZeroGetSet(t *testing.T) {
 
 	sys.Reset()
 }
+
+func TestMemPoolStats(t *testing.T) {
+	type Vec struct{ x, y, z float32 }
+	vec := Vec{}
+	id := ID(3)
+	align := 32
+
+	pool := NewMemoryPool(id, vec, align)
+
+	stats := pool.Stats()
+
+	if (stats.Alignment != uint(align)) {
+		t.Errorf("expected alignment of %d, found %d\n", align, stats.Alignment)
+	}
+	if (stats.SizeInBytes != uint(align)) {
+		t.Errorf("expected object size of %d, found %d\n", align, stats.SizeInBytes)
+	}
+	if (stats.ID != id) {
+		t.Errorf("expected id %d, found %d\n", id, stats.ID)
+	}
+
+	if (stats.TotalPages != 0) {
+		t.Errorf("expected to not alloc component pages for pools not used\n")
+	}
+
+	_, index := pool.Alloc()
+
+	stats = pool.Stats()
+
+	if (stats.InUse != 1) {
+		t.Errorf("expected stats.InUse to be 1, found %d\n", stats.InUse)
+	}
+
+	pool.Free(index)
+
+	stats = pool.Stats()
+
+	if (stats.InUse != 0) {
+		t.Errorf("expected stats.InUse to be 0, found %d\n", stats.InUse)
+	}
+	if (stats.Recycled != 1) {
+		t.Errorf("expected stats.Recycled to be 1, found %d\n", stats.Recycled)
+	}
+	if (stats.TotalPages != 1) {
+		t.Errorf("expected stats.TotalPages to be 1, found %d\n", stats.TotalPages)
+	}
+
+	pool.Reset()
+
+	stats = pool.Stats()
+
+	if (stats.TotalPages != 0) {
+		t.Errorf("expected to not alloc component pages for pools not used\n")
+	}
+}

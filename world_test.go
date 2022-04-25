@@ -164,3 +164,67 @@ func TestWorldDebug(t *testing.T) {
 	world.Remove(entity, Transform2DComponentID)
 	world.RemEntity(entity)
 }
+
+func TestWorldStats(t *testing.T) {
+	config := []ComponentConfig{
+		{UIDesignComponentID, 0, UIDesign{}},
+		{Transform2DComponentID, 0, Transform2D{}},
+		{Physics2DComponentID, 0, Physics2D{}},
+		{ScriptComponentID, 0, Script{}},
+	}
+
+	world := NewWorld(config...)
+
+	stats := world.Stats()
+
+	if (stats.EntityStats.Recycled != 0) {
+		t.Errorf("expected to have 0 entities recycled, found %d\n", stats.EntityStats.Recycled)
+	}
+	if (stats.EntityStats.InUse != 0) {
+		t.Errorf("expected to have 0 entities, found %d\n", stats.EntityStats.InUse)
+	}
+	if (stats.EntityStats.Total != 0) {
+		t.Errorf("expected to have a total of 0 entities, found %d\n", stats.EntityStats.Total)
+	}
+
+	if (stats.ComponentCount != uint(len(config))) {
+		t.Errorf("expected to have a total of %d components, found %d\n", len(config), stats.ComponentCount)
+	}
+
+	world.NewEntity()
+	entity := world.NewEntity()
+	world.NewEntity()
+
+	stats = world.Stats()
+
+	if (stats.EntityStats.Recycled != 0) {
+		t.Errorf("expected to have 0 entities recycled, found %d\n", stats.EntityStats.Recycled)
+	}
+	if (stats.EntityStats.InUse != 3) {
+		t.Errorf("expected to have 3 entities in use, found %d\n", stats.EntityStats.InUse)
+	}
+	if (stats.EntityStats.Total != 3) {
+		t.Errorf("expected to have a total of 3 entities, found %d\n", stats.EntityStats.Total)
+	}
+
+	world.RemEntity(entity)
+
+	stats = world.Stats()
+
+	if (stats.EntityStats.Recycled != 1) {
+		t.Errorf("expected to have 1 entities recycled, found %d\n", stats.EntityStats.Recycled)
+	}
+	if (stats.EntityStats.InUse != 2) {
+		t.Errorf("expected to have 2 entities in use, found %d\n", stats.EntityStats.InUse)
+	}
+	if (stats.EntityStats.Total != 3) {
+		t.Errorf("expected to have a total of 3 entities, found %d\n", stats.EntityStats.Total)
+	}
+
+	invalidStats := world.ComponentStats(9999)
+	accum := invalidStats.SparseArrayLength + invalidStats.MemStats.Alignment + invalidStats.MemStats.InUse
+
+	if (accum != 0) {
+		t.Errorf("invalid component returned unknown status %v\n", invalidStats)
+	}
+}

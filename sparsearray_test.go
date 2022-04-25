@@ -41,6 +41,12 @@ func testSparseGetSet(t *testing.T, arr SparseArray) {
 	if index != InvalidIndex {
 		t.Errorf("expected invalid index to return InvalidIndex, %d received\n", index)
 	}
+
+	length := arr.Length()
+	// 10000 for array, 3334 for map
+	if (length != 10000 && length != 3334) {
+		t.Errorf("Expected length of 10000 or 3334, found %d\n", length)
+	}
 }
 
 func BenchmarkSparseArray(b *testing.B) {

@@ -22,6 +22,8 @@ import (
 // Zero fills the memory block at Index with zeros
 //
 // Reset discards all the blocks and sets the MemoryPool to its initial state
+//
+// Stats collects statistics from the MemoryPool
 type MemoryPool interface {
 	Alloc() (unsafe.Pointer, Index)
 	Free(Index)
@@ -29,6 +31,7 @@ type MemoryPool interface {
 	Set(Index, interface{})
 	Zero(Index)
 	Reset()
+	Stats() MemoryPoolStats
 }
 
 type memoryPage struct {
@@ -43,6 +46,17 @@ type memPool struct {
 	itemMask        uintptr
 	recycle         []uintptr
 	pages           []memoryPage
+}
+
+// MemoryPoolStats is the runtime information of the MemoryPool
+type MemoryPoolStats struct {
+	ID                       // MemoryPool ID
+	InUse             uint   // Total components in use
+	Recycled          uint   // Total components in recycle list
+	SizeInBytes       uint   // Allocation size in Bytes for every instance of this component
+	Alignment         uint   // This component is laid in memory in multiples of this value
+	PageSizeInBytes   uint   // Allocation size in Bytes for a page of components
+	TotalPages        uint   // Total pages allocated
 }
 
 // MemoryPoolConfg defines the layout of the MemoryPool
@@ -135,6 +149,29 @@ func (s *memPool) Zero(index Index) {
 func (s *memPool) Reset() {
 	s.recycle = make([]uintptr, 0)
 	s.pages = nil
+}
+
+func (s *memPool) Stats() MemoryPoolStats {
+	totalPages := uint(len(s.pages))
+	itemSize := uint(s.itemSizeAligned)
+	recycled := uint(len(s.recycle))
+	lastPage := uint(0)
+	lastItem := uint(0)
+
+	if (totalPages > 0) {
+		lastPage = totalPages - 1
+		lastItem = lastPage<<InitialMemoryPoolCapacityShift + uint(s.pages[lastPage].used)
+	}
+
+	return MemoryPoolStats{
+		ID: s.id,
+		InUse: lastItem - recycled,
+		Recycled: uint(len(s.recycle)),
+		SizeInBytes: itemSize,
+		Alignment: uint(^s.itemMask) + 1,
+		PageSizeInBytes: itemSize * totalPages,
+		TotalPages: totalPages,
+	}
 }
 
 func (s *memPool) newMemoryPage() {
