@@ -22,12 +22,3 @@ func entitySliceContains(entities []Entity, entity Entity) bool {
 	}
 	return false
 }
-
-func entityMaskPairSliceContains(pairs []EntityMaskPair, entity Entity) bool {
-	for _, p := range pairs {
-		if p.entity == entity {
-			return true
-		}
-	}
-	return false
-}

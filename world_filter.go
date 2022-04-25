@@ -22,14 +22,11 @@ func (e *entityFilter) World() World {
 	return e.world
 }
 
-func (e *entityFilter) Sort() {
+func (e *entityFilter) sort() {
 	sort.Sort(e.entities)
 }
 
-func (e *entityFilter) IndexOf(entity Entity, limit int) int {
-	if limit < 0 || limit > len(e.entities) {
-		limit = len(e.entities)
-	}
+func (e *entityFilter) indexOf(entity Entity, limit int) int {
 	index := sort.Search(limit, func(ind int) bool { return e.entities[ind] >= entity })
 	if index < limit && e.entities[index] == entity {
 		return index
@@ -97,20 +94,20 @@ func (w *world) collectEntities(filter *entityFilter) {
 			filter.entities = append(filter.entities, Entity(index+1))
 		}
 	}
-	filter.Sort()
+	filter.sort()
 }
 
 func (w *world) updateFilters(add bool, entityPairs ...EntityMaskPair) {
 	if add {
 		for _, filter := range w.filters {
 			if w.batchInsertToFilter(filter, entityPairs...) {
-				filter.Sort()
+				filter.sort()
 			}
 		}
 	} else {
 		for _, filter := range w.filters {
 			if w.batchRemoveFromFilter(filter, entityPairs...) {
-				filter.Sort()
+				filter.sort()
 			}
 		}
 	}
@@ -127,7 +124,7 @@ func (w *world) batchRemoveFromFilter(filter *entityFilter, entityPairs ...Entit
 		entity := entityPair.entity
 
 		if mask.Contains(filter.mask) {
-			index := filter.IndexOf(entity, filterEntityCount)
+			index := filter.indexOf(entity, filterEntityCount)
 			if index != filterEntityCount {
 				w.entityRemoveIndex = append(w.entityRemoveIndex, index)
 			}
@@ -154,7 +151,7 @@ func (w *world) batchInsertToFilter(filter *entityFilter, entityPairs ...EntityM
 		mask := entityPair.mask
 
 		if mask.Contains(filter.mask) {
-			index := filter.IndexOf(entity, filterEntityCount)
+			index := filter.indexOf(entity, filterEntityCount)
 			if index == filterEntityCount {
 				filter.entities = append(filter.entities, entity)
 				needSort = true

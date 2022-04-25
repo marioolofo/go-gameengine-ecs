@@ -158,9 +158,22 @@ func TestWorldLockUnlockBatch(t *testing.T) {
 
 	world.Lock()
 
+	if len(transformFilter.Entities()) != entityTransformCount {
+		t.Errorf("Added %d entities for transform inside Lock(), filter received %d!\n", entityTransformCount, len(transformFilter.Entities()))
+	}
+	if len(physicsFilter.Entities()) != entityPhysicsCount {
+		t.Errorf("Added %d entities for physics inside Lock(), filter received %d!\n", entityPhysicsCount, len(physicsFilter.Entities()))
+	}
+
+	world.Unlock()
+
+	world.Lock()
+
 	for i := 0; i < len(entitiesMask); i++ {
 		world.RemEntity(Entity(i + 1))
 	}
+
+	world.RemEntity(Entity(1))
 
 	world.Unlock()
 

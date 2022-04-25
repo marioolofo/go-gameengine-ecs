@@ -105,7 +105,7 @@ func TestWorldCore(t *testing.T) {
 		world.RemEntity(entity)
 	}
 	newEntity := world.NewEntity()
-	// IDs são reciclados do ultimo pro primeiro:
+	// IDs are recycled from last to first entity removed from the world
 	if newEntity != Entity(99999) {
 		t.Errorf("expected entity recycle for id 1, received %d\n", newEntity)
 	}
@@ -149,4 +149,18 @@ func TestWorldEntityID(t *testing.T) {
 	if entity != 1 || entity2 != 2 {
 		t.Errorf("expected entities IDs 1 & 2, received %d & %d", entity, entity2)
 	}
+}
+
+func TestWorldDebug(t *testing.T) {
+	config := []ComponentConfig{
+		{Transform2DComponentID, 0, Transform2D{}},
+	}
+	world := NewWorld(config...)
+
+	entity := world.NewEntity()
+	world.RemEntity(entity)
+
+	world.Assign(entity, Transform2DComponentID)
+	world.Remove(entity, Transform2DComponentID)
+	world.RemEntity(entity)
 }
