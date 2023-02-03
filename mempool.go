@@ -163,13 +163,15 @@ func (s *memPool) Stats() MemoryPoolStats {
 		lastItem = lastPage<<InitialMemoryPoolCapacityShift + uint(s.pages[lastPage].used)
 	}
 
+	bufferSize := s.itemSizeAligned + s.itemSizeAligned<<InitialMemoryPoolCapacityShift
+
 	return MemoryPoolStats{
 		ID: s.id,
 		InUse: lastItem - recycled,
 		Recycled: uint(len(s.recycle)),
 		SizeInBytes: itemSize,
 		Alignment: uint(^s.itemMask) + 1,
-		PageSizeInBytes: itemSize * totalPages,
+		PageSizeInBytes: uint(bufferSize),
 		TotalPages: totalPages,
 	}
 }

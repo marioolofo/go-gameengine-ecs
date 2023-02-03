@@ -1,7 +1,9 @@
 package ecs
 
 import (
+	"fmt"
 	"reflect"
+	"strings"
 	"unsafe"
 )
 
@@ -94,6 +96,32 @@ type WorldStats struct {
 	ComponentStats [MaskTotalBits]SystemStats
 	ComponentCount uint // Number of valid components in ComponentStats array
 	Lock           int  // > 0 if the World is inside locked state
+}
+
+func (e WorldEntityStats) String() string {
+	return fmt.Sprintf("stats.entity\n\t%d Total\n\t%d Used\n\t%d Recycled\n", e.Total, e.InUse, e.Recycled)
+}
+
+func (s WorldStats) String() string {
+	var builder strings.Builder
+
+	builder.WriteString("World.Stats\n")
+	builder.WriteString(fmt.Sprintf("\tworld locked count: %d\n", s.Lock))
+	builder.WriteString(s.EntityStats.String())
+
+	for i := uint(0); i < s.ComponentCount; i++ {
+		comp := s.ComponentStats[i]
+
+		builder.WriteString(fmt.Sprintf("stats.component %d", comp.MemStats.ID))
+		builder.WriteString(fmt.Sprintf("\n\tSparseArray length: %d", comp.SparseArrayLength))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool components in use: %d", comp.MemStats.InUse))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool components recycled: %d", comp.MemStats.Recycled))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool component buffer size: %d", comp.MemStats.SizeInBytes))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool component buffer alignment: %d", comp.MemStats.Alignment))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool page size: %d", comp.MemStats.PageSizeInBytes))
+		builder.WriteString(fmt.Sprintf("\n\tMemPool page count: %d\n", comp.MemStats.TotalPages))
+	}
+	return builder.String()
 }
 
 type EntityMaskPair struct {
