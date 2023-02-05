@@ -85,9 +85,9 @@ type World interface {
 
 // WorldEntityStats is the runtime statistics of entities in the World
 type WorldEntityStats struct {
-	Total    uint   // Total entities allocated
-	InUse    uint   // Total entities currently in use
-	Recycled uint   // Total entities in recycle list
+	Total    uint // Total entities allocated
+	InUse    uint // Total entities currently in use
+	Recycled uint // Total entities in recycle list
 }
 
 // WorldStatus gives real time statistics of the World
@@ -130,16 +130,16 @@ type EntityMaskPair struct {
 }
 
 type world struct {
-	systemsMask        Mask
-	recycleIDs         []ID
-	entities           []Mask
-	systems            [MaskTotalBits]System
-	filters            []*entityFilter
-	entityRemoveIndex  []int
-	lock               int
-	remEntitiesQueue   []Entity
-	eventsQueue        []EntityMaskPair
-	eventsQueueAdding  []bool
+	systemsMask       Mask
+	recycleIDs        []ID
+	entities          []Mask
+	systems           [MaskTotalBits]System
+	filters           []*entityFilter
+	entityRemoveIndex []int
+	lock              int
+	remEntitiesQueue  []Entity
+	eventsQueue       []EntityMaskPair
+	eventsQueueAdding []bool
 }
 
 // NewWorld returns a new World with Systems created for configs
@@ -211,7 +211,7 @@ func (w *world) RemEntity(entity Entity) {
 		w.remEntitiesQueue = append(w.remEntitiesQueue, entity)
 		w.eventsQueue = append(w.eventsQueue, EntityMaskPair{entity, w.entities[entity]})
 		w.eventsQueueAdding = append(w.eventsQueueAdding, false)
-		w.entities[entity] = Mask(0);
+		w.entities[entity] = Mask(0)
 	} else {
 		w.remComponentsFromEntities(entity)
 		w.recycleEntitiesAndUpdateFilters(entity)
@@ -259,7 +259,7 @@ func (w *world) Remove(entity Entity, ids ...ID) {
 		w.entities[entity] &= ^mask
 	} else {
 		w.remove(entity, NewMask(ids...))
-	 	w.updateFilters(false, EntityMaskPair{entity, w.entities[entity]})
+		w.updateFilters(false, EntityMaskPair{entity, w.entities[entity]})
 	}
 }
 
@@ -289,14 +289,13 @@ func (w *world) Unlock() {
 	}
 }
 
-
 func (w *world) EntityStats() WorldEntityStats {
 	total := uint(len(w.entities)) - 1 // -1 because index 0 is unused
 	recycled := uint(len(w.recycleIDs))
 
 	return WorldEntityStats{
-		Total: total,
-		InUse: total - recycled,
+		Total:    total,
+		InUse:    total - recycled,
 		Recycled: recycled,
 	}
 }
@@ -312,7 +311,7 @@ func (w *world) ComponentStats(id ID) SystemStats {
 
 func (w *world) Stats() WorldStats {
 	stats := WorldStats{
-		Lock: w.lock,
+		Lock:        w.lock,
 		EntityStats: w.EntityStats(),
 	}
 	stats.ComponentCount = 0

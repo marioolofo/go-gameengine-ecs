@@ -21,11 +21,11 @@ func (t *Transform) Executer() {
 		phys := e.GetEPhysics2D()
 		tr := e.GetETransform2D()
 
-		Velx := phys.Velx + phys.Accelx * dt
-		Vely := phys.Vely + phys.Accely * dt
+		Velx := phys.Velx + phys.Accelx*dt
+		Vely := phys.Vely + phys.Accely*dt
 
-		X := tr.X + Velx * dt
-		Y := tr.Y + Vely * dt
+		X := tr.X + Velx*dt
+		Y := tr.Y + Vely*dt
 
 		phys.Velx *= 0.99
 		phys.Vely *= 0.99
@@ -42,7 +42,7 @@ func EntitasBench(b *testing.B, entityCount, updateCount int) {
 	systems := ecs.CreateSystemPool()
 	systems.Add(&Transform{})
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		name := fmt.Sprint("entity_", i)
 		e1 := game.CreateEntity()
 		e1.AddEScript(0)
@@ -132,4 +132,3 @@ func BenchmarkEntitas_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkEntitas_100000_entities_10000_updates(b *testing.B) {
 	EntitasBench(b, 100000, 10000)
 }
-

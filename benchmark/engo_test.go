@@ -9,30 +9,30 @@ import (
 
 type EditorOption struct {
 	ecs.BasicEntity
-	ui UIDesign
+	ui     UIDesign
 	script Script
 }
 
 type Object2D struct {
 	ecs.BasicEntity
 	transform Transform2D
-	physics Physics2D
+	physics   Physics2D
 }
 
 func (s *Script) GetScript() *Script {
-	return s;
+	return s
 }
 
 func (ui *UIDesign) GetUIDesign() *UIDesign {
-	return ui;
+	return ui
 }
 
 func (tr *Transform2D) GetTransform2D() *Transform2D {
-	return tr;
+	return tr
 }
 
 func (p *Physics2D) GetPhysics2D() *Physics2D {
-	return p;
+	return p
 }
 
 type ScriptFace interface {
@@ -64,7 +64,7 @@ type Physicsable interface {
 }
 
 type editorSystemEntity struct {
-	ui *UIDesign
+	ui     *UIDesign
 	script *Script
 }
 
@@ -76,7 +76,7 @@ func (editor *EditorSystem) New(w *ecs.World) {
 	editor.entities = make(map[uint64]editorSystemEntity)
 }
 
-func (editor *EditorSystem) Add(e *ecs.BasicEntity, ui* UIDesign, script *Script) {
+func (editor *EditorSystem) Add(e *ecs.BasicEntity, ui *UIDesign, script *Script) {
 	editor.entities[e.ID()] = editorSystemEntity{ui, script}
 }
 
@@ -89,12 +89,12 @@ func (editor *EditorSystem) AddByInterface(o ecs.Identifier) {
 func (editor *EditorSystem) Update(dt float32) {
 }
 
-func (editor* EditorSystem) Remove(e ecs.BasicEntity) {
+func (editor *EditorSystem) Remove(e ecs.BasicEntity) {
 	delete(editor.entities, e.ID())
 }
 
 type objectSystemEntity struct {
-	physics *Physics2D
+	physics   *Physics2D
 	transform *Transform2D
 }
 
@@ -106,10 +106,9 @@ func (o *ObjectSystem) New(w *ecs.World) {
 	o.entities = make(map[uint64]objectSystemEntity)
 }
 
-func (o *ObjectSystem) Add(e *ecs.BasicEntity, physics *Physics2D, transform* Transform2D) {
+func (o *ObjectSystem) Add(e *ecs.BasicEntity, physics *Physics2D, transform *Transform2D) {
 	o.entities[e.ID()] = objectSystemEntity{physics, transform}
 }
-
 
 func (o *ObjectSystem) AddByInterface(i ecs.Identifier) {
 	obj := i.(Physicsable)
@@ -132,7 +131,7 @@ func (o *ObjectSystem) Update(dt float32) {
 	}
 }
 
-func (o* ObjectSystem) Remove(e ecs.BasicEntity) {
+func (o *ObjectSystem) Remove(e ecs.BasicEntity) {
 	delete(o.entities, e.ID())
 }
 
@@ -148,16 +147,18 @@ func EngoEngineBench(b *testing.B, entityCount, updateCount int) {
 
 	for _, system := range world.Systems() {
 		switch sys := system.(type) {
-			case *EditorSystem: {
+		case *EditorSystem:
+			{
 				editorSys = sys
 			}
-			case *ObjectSystem: {
+		case *ObjectSystem:
+			{
 				objSys = sys
 			}
 		}
 	}
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		e1 := EditorOption{BasicEntity: ecs.NewBasic()}
 		e1.ui.name = fmt.Sprint("entity_", i)
 		editorSys.Add(&e1.BasicEntity, &e1.ui, &e1.script)
@@ -243,4 +244,3 @@ func BenchmarkEngoEngine_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkEngoEngine_100000_entities_10000_updates(b *testing.B) {
 	EngoEngineBench(b, 100000, 10000)
 }
-

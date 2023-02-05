@@ -12,6 +12,8 @@ const (
 	Transform3DComponentID
 	Physics3DComponentID
 	ScriptComponentID
+	CountComponentID
+	SliceComponentID
 	CustomComponentStartID
 )
 
@@ -31,6 +33,14 @@ type Physics2D struct {
 
 type Script struct {
 	filePath string
+}
+
+type CountComponent struct {
+	Count int
+}
+
+type SliceComponent struct {
+	Data []int
 }
 
 func TestWorldCore(t *testing.T) {
@@ -177,18 +187,22 @@ func TestWorldStats(t *testing.T) {
 
 	stats := world.Stats()
 
-	if (stats.EntityStats.Recycled != 0) {
+	if stats.EntityStats.Recycled != 0 {
 		t.Errorf("expected to have 0 entities recycled, found %d\n", stats.EntityStats.Recycled)
 	}
-	if (stats.EntityStats.InUse != 0) {
+	if stats.EntityStats.InUse != 0 {
 		t.Errorf("expected to have 0 entities, found %d\n", stats.EntityStats.InUse)
 	}
-	if (stats.EntityStats.Total != 0) {
+	if stats.EntityStats.Total != 0 {
 		t.Errorf("expected to have a total of 0 entities, found %d\n", stats.EntityStats.Total)
 	}
 
-	if (stats.ComponentCount != uint(len(config))) {
+	if stats.ComponentCount != uint(len(config)) {
 		t.Errorf("expected to have a total of %d components, found %d\n", len(config), stats.ComponentCount)
+	}
+
+	if stats.String() == "" {
+		t.Error("expected String() to show details of Stats, empty string returned\n")
 	}
 
 	world.NewEntity()
@@ -197,13 +211,13 @@ func TestWorldStats(t *testing.T) {
 
 	stats = world.Stats()
 
-	if (stats.EntityStats.Recycled != 0) {
+	if stats.EntityStats.Recycled != 0 {
 		t.Errorf("expected to have 0 entities recycled, found %d\n", stats.EntityStats.Recycled)
 	}
-	if (stats.EntityStats.InUse != 3) {
+	if stats.EntityStats.InUse != 3 {
 		t.Errorf("expected to have 3 entities in use, found %d\n", stats.EntityStats.InUse)
 	}
-	if (stats.EntityStats.Total != 3) {
+	if stats.EntityStats.Total != 3 {
 		t.Errorf("expected to have a total of 3 entities, found %d\n", stats.EntityStats.Total)
 	}
 
@@ -211,20 +225,68 @@ func TestWorldStats(t *testing.T) {
 
 	stats = world.Stats()
 
-	if (stats.EntityStats.Recycled != 1) {
+	if stats.EntityStats.Recycled != 1 {
 		t.Errorf("expected to have 1 entities recycled, found %d\n", stats.EntityStats.Recycled)
 	}
-	if (stats.EntityStats.InUse != 2) {
+	if stats.EntityStats.InUse != 2 {
 		t.Errorf("expected to have 2 entities in use, found %d\n", stats.EntityStats.InUse)
 	}
-	if (stats.EntityStats.Total != 3) {
+	if stats.EntityStats.Total != 3 {
 		t.Errorf("expected to have a total of 3 entities, found %d\n", stats.EntityStats.Total)
 	}
 
 	invalidStats := world.ComponentStats(9999)
 	accum := invalidStats.SparseArrayLength + invalidStats.MemStats.Alignment + invalidStats.MemStats.InUse
 
-	if (accum != 0) {
+	if accum != 0 {
 		t.Errorf("invalid component returned unknown status %v\n", invalidStats)
 	}
+}
+
+func TestWorldSlicesInComponents(t *testing.T) {
+	config := []ComponentConfig{
+		{CountComponentID, 0, CountComponent{}},
+		{SliceComponentID, 0, SliceComponent{}},
+	}
+
+	w := NewWorld(config...)
+
+	for i := 0; i < 1000; i++ {
+		e := w.NewEntity()
+		w.Assign(e, SliceComponentID, CountComponentID)
+	}
+
+	filter1 := w.NewFilter(SliceComponentID, CountComponentID)
+	filter2 := w.NewFilter(SliceComponentID, CountComponentID)
+
+	for step := 0; step < 10000; step++ {
+		for _, entity := range filter1.Entities() {
+			count := (*CountComponent)(w.Component(entity, CountComponentID))
+			comp := (*SliceComponent)(w.Component(entity, SliceComponentID))
+
+			count.Count = rand.Intn(8) + 1
+			comp.Data = make([]int, count.Count)
+			for i := 0; i < count.Count; i++ {
+				comp.Data[i] = 1
+			}
+		}
+
+		for _, entity := range filter2.Entities() {
+			count := (*CountComponent)(w.Component(entity, CountComponentID))
+			comp := (*SliceComponent)(w.Component(entity, SliceComponentID))
+
+			if len(comp.Data) != count.Count {
+				t.Errorf("wrong slice length: (e %d) %d (exp. %d)\n", entity, len(comp.Data), count.Count)
+				continue
+			}
+			for _, v := range comp.Data {
+				if v != 1 {
+					t.Errorf("wrong value in slice: (e %d) %d (%v)\n", entity, v, comp.Data)
+				}
+			}
+		}
+	}
+
+	w.RemFilter(filter1)
+	w.RemFilter(filter2)
 }

@@ -24,8 +24,8 @@ type Vec2D struct {
 }
 
 type UIDesign struct {
-	name   string
-	flags  uint64
+	name  string
+	flags uint64
 }
 
 type Transform2D struct {
@@ -35,10 +35,9 @@ type Transform2D struct {
 
 type Physics2D struct {
 	linearAccel, velocity Vec2D
-	angularAccel, torque float32
+	angularAccel, torque  float32
 }
 
 type Script struct {
 	handle int
 }
-

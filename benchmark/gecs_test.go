@@ -8,16 +8,16 @@ import (
 )
 
 var (
-	PhysID = gecs.RegisterComponent("Phys2D")
+	PhysID      = gecs.RegisterComponent("Phys2D")
 	TransformID = gecs.RegisterComponent("Transform2D")
-	ScriptID = gecs.RegisterComponent("Script")
-	UIDesignID = gecs.RegisterComponent("UIDesign")
+	ScriptID    = gecs.RegisterComponent("Script")
+	UIDesignID  = gecs.RegisterComponent("UIDesign")
 )
 
 func GecsBench(b *testing.B, entityCount, updateCount int) {
 	registry := gecs.NewRegistry()
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		name := fmt.Sprint("entity_", i)
 		e1 := registry.Create()
 		registry.Assign(e1, ScriptID, Script{})
@@ -116,4 +116,3 @@ func BenchmarkGecs_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkGecs_100000_entities_10000_updates(b *testing.B) {
 	GecsBench(b, 100000, 10000)
 }
-

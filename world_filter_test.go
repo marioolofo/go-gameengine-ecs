@@ -125,18 +125,18 @@ func TestWorldLockUnlockBatch(t *testing.T) {
 	for i := 0; i < len(entitiesMask); i++ {
 		mask := NewMask(Physics2DComponentID, Transform2DComponentID)
 		if entitiesMask[i] == mask {
-			world.Remove(Entity(i + 1), Transform2DComponentID, Physics2DComponentID)
+			world.Remove(Entity(i+1), Transform2DComponentID, Physics2DComponentID)
 			entitiesMask[i] = Mask(0)
 			continue
 		}
 
 		if entitiesMask[i].Get(Transform2DComponentID) {
-			world.Remove(Entity(i + 1), Transform2DComponentID)
-			world.Assign(Entity(i + 1), Physics2DComponentID)
+			world.Remove(Entity(i+1), Transform2DComponentID)
+			world.Assign(Entity(i+1), Physics2DComponentID)
 			entityPhysicsCount++
 		} else {
-			world.Remove(Entity(i + 1), Physics2DComponentID)
-			world.Assign(Entity(i + 1), Transform2DComponentID)
+			world.Remove(Entity(i+1), Physics2DComponentID)
+			world.Assign(Entity(i+1), Transform2DComponentID)
 			entityTransformCount++
 		}
 		trState := entitiesMask[i].Get(Transform2DComponentID)

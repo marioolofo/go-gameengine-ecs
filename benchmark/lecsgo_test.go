@@ -2,14 +2,14 @@ package ecs_benchmark
 
 import (
 	"fmt"
-	"testing"
 	_ "github.com/leopotam/go-ecs"
+	"testing"
 )
 
 func LecsGOBench(b *testing.B, entityCount, updateCount int) {
 	world := NewLecsGOWorld(256)
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		e1 := world.NewEntity()
 		world.SetScript(e1)
 		design := world.SetUIDesign(e1)
@@ -110,4 +110,3 @@ func BenchmarkLecsGO_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkLecsGO_100000_entities_10000_updates(b *testing.B) {
 	LecsGOBench(b, 100000, 10000)
 }
-

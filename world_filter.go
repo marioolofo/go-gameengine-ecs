@@ -133,9 +133,9 @@ func (w *world) batchRemoveFromFilter(filter *entityFilter, entityPairs ...Entit
 
 	if len(w.entityRemoveIndex) > 0 {
 		for sub, index := range w.entityRemoveIndex {
-			filter.entities[index] = filter.entities[len(filter.entities) - 1 - sub]
+			filter.entities[index] = filter.entities[len(filter.entities)-1-sub]
 		}
-		filter.entities = filter.entities[:len(filter.entities) - len(w.entityRemoveIndex)]
+		filter.entities = filter.entities[:len(filter.entities)-len(w.entityRemoveIndex)]
 		needSort = true
 	}
 

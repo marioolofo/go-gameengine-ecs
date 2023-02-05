@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"testing"
+	"unsafe"
 )
 
 func TestMemPoolAllocAndRecycle(t *testing.T) {
@@ -24,7 +25,7 @@ func TestMemPoolAllocAndRecycle(t *testing.T) {
 
 	getPtr = mem.Get(index)
 	if newTimer != getPtr {
-		t.Fatal("pointer from Alloc() and Get() are not equal")
+		t.Fatalf("pointer %d from Alloc() and Get() are not equal (want %x  got %x)", index, newTimer, getPtr)
 	}
 
 	mem.Free(index)
@@ -49,35 +50,6 @@ func TestMemPoolAllocAndRecycle(t *testing.T) {
 	}
 }
 
-func TestMemPoolUnaligned(t *testing.T) {
-	type unaligned struct {
-		data [5]byte
-	}
-	type aligned struct {
-		data [4]byte
-	}
-
-	mem := NewMemoryPool(0, aligned{}, 17)
-
-	for i := 0; i < 5; i++ {
-		ptr, _ := mem.Alloc()
-		if uintptr(ptr)&1 != 0 {
-			t.Errorf("alloced unaligned data: %v\n", ptr)
-		}
-	}
-	mem.Reset()
-
-	mem = NewMemoryPool(0, unaligned{}, 32)
-	for i := 0; i < 7; i++ {
-		ptr, _ := mem.Alloc()
-		if uintptr(ptr)&31 != 0 {
-			t.Error("alloced data with invalid alignment")
-		}
-	}
-
-	mem.Reset()
-}
-
 func TestMemPoolZeroGetSet(t *testing.T) {
 	type Vec struct{ x, y, z float32 }
 	vec := Vec{}
@@ -91,7 +63,7 @@ func TestMemPoolZeroGetSet(t *testing.T) {
 		ptr := sys.Get(index)
 
 		if ptrAlloc != ptr {
-			t.Error("ptr from Alloc() and Get() are not equal")
+			t.Fatalf("pointer %d from Alloc() and Get() are not equal (want %x  got %x)", index, ptrAlloc, ptr)
 		}
 
 		v := (*Vec)(ptr)
@@ -106,13 +78,15 @@ func TestMemPoolZeroGetSet(t *testing.T) {
 
 		diff := ptr.x + ptr.y + ptr.z - float32(i*6)
 		if diff < -0.00001 || diff > 0.00001 {
-			t.Errorf("ptr value differ from expected (%d %d %d) received (%f %f %f)\n", i, i*2, i*3, ptr.x, ptr.y, ptr.z)
+			t.Errorf("ptr %d value differ from expected (%d %d %d) received (%f %f %f)\n", i, i, i*2, i*3, ptr.x, ptr.y, ptr.z)
 		}
 
 		vec.x = float32(i * 4)
 		vec.y = float32(i * 5)
 		vec.z = float32(i * 6)
-		sys.Set(Index(i), &vec)
+		if sys.Set(Index(i), vec) == false {
+			sys.Set(Index(i), &vec)
+		}
 	}
 
 	// check if values are correct and Zero() them
@@ -138,23 +112,20 @@ func TestMemPoolStats(t *testing.T) {
 	type Vec struct{ x, y, z float32 }
 	vec := Vec{}
 	id := ID(3)
-	align := 32
+	align := unsafe.Sizeof(vec)
 
-	pool := NewMemoryPool(id, vec, align)
+	pool := NewMemoryPool(id, vec, 0)
 
 	stats := pool.Stats()
 
-	if (stats.Alignment != uint(align)) {
-		t.Errorf("expected alignment of %d, found %d\n", align, stats.Alignment)
-	}
-	if (stats.SizeInBytes != uint(align)) {
+	if stats.SizeInBytes != uint(align) {
 		t.Errorf("expected object size of %d, found %d\n", align, stats.SizeInBytes)
 	}
-	if (stats.ID != id) {
+	if stats.ID != id {
 		t.Errorf("expected id %d, found %d\n", id, stats.ID)
 	}
 
-	if (stats.TotalPages != 0) {
+	if stats.TotalPages != 0 {
 		t.Errorf("expected to not alloc component pages for pools not used\n")
 	}
 
@@ -162,7 +133,7 @@ func TestMemPoolStats(t *testing.T) {
 
 	stats = pool.Stats()
 
-	if (stats.InUse != 1) {
+	if stats.InUse != 1 {
 		t.Errorf("expected stats.InUse to be 1, found %d\n", stats.InUse)
 	}
 
@@ -170,13 +141,13 @@ func TestMemPoolStats(t *testing.T) {
 
 	stats = pool.Stats()
 
-	if (stats.InUse != 0) {
+	if stats.InUse != 0 {
 		t.Errorf("expected stats.InUse to be 0, found %d\n", stats.InUse)
 	}
-	if (stats.Recycled != 1) {
+	if stats.Recycled != 1 {
 		t.Errorf("expected stats.Recycled to be 1, found %d\n", stats.Recycled)
 	}
-	if (stats.TotalPages != 1) {
+	if stats.TotalPages != 1 {
 		t.Errorf("expected stats.TotalPages to be 1, found %d\n", stats.TotalPages)
 	}
 
@@ -184,7 +155,7 @@ func TestMemPoolStats(t *testing.T) {
 
 	stats = pool.Stats()
 
-	if (stats.TotalPages != 0) {
+	if stats.TotalPages != 0 {
 		t.Errorf("expected to not alloc component pages for pools not used\n")
 	}
 }

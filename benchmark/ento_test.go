@@ -8,13 +8,13 @@ import (
 )
 
 type SystemPhysTransform struct {
-	Phys *Physics2D `ento:"required"`
+	Phys      *Physics2D   `ento:"required"`
 	Transform *Transform2D `ento:"required"`
 }
 
 type SystemDesignScript struct {
 	Design *UIDesign `ento:"required"`
-	Script *Script `ento:"required"`
+	Script *Script   `ento:"required"`
 }
 
 func (d *SystemDesignScript) Update(entity *ento.Entity) {
@@ -47,7 +47,7 @@ func EntoBench(b *testing.B, entityCount, updateCount int) {
 
 	world.AddSystems(physSystem, uiSystem)
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		name := fmt.Sprint("entity_", i)
 		world.AddEntity(UIDesign{name: name}, Script{})
 
@@ -130,4 +130,3 @@ func BenchmarkEnto_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkEnto_100000_entities_10000_updates(b *testing.B) {
 	EntoBench(b, 100000, 10000)
 }
-

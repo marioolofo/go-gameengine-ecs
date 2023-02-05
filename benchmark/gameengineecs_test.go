@@ -17,7 +17,7 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 
 	world := ecs.NewWorld(config...)
 
-	for i := 0; i < entityCount / 2; i++ {
+	for i := 0; i < entityCount/2; i++ {
 		e1 := world.NewEntity()
 		world.Assign(e1, UIDesignComponentID, ScriptComponentID)
 		design := (*UIDesign)(world.Component(e1, UIDesignComponentID))
@@ -122,4 +122,3 @@ func BenchmarkGameEngineECS_10000_entities_10000_updates(b *testing.B) {
 func BenchmarkGameEngineECS_100000_entities_10000_updates(b *testing.B) {
 	GameEngineECSBench(b, 100000, 10000)
 }
-
