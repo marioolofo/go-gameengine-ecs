@@ -1,11 +1,11 @@
 package ecs_benchmark
 
 import (
-	"github.com/marioolofo/go-gameengine-ecs"
+	ecs "github.com/marioolofo/go-gameengine-ecs"
 )
 
 const (
-	UIDesignComponentID ecs.ID = iota
+	UIDesignComponentID ecs.EntityID = iota
 	Transform2DComponentID
 	Physics2DComponentID
 	ScriptComponentID

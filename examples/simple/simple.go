@@ -1,79 +1,59 @@
-package main
+package ecs
 
-import (
-	"github.com/marioolofo/go-gameengine-ecs"
-)
+func test() {
 
-// Component IDs
-const (
-	TransformID ecs.ID = iota
-	PhysicsID
-)
+	world := NewWorld()
+	// number of threads to execute the loop of searches
+	world.SetParallel(4)
 
-type Vec2D struct {
-	x, y float32
-}
+	// Entity is a suggar wrapper for the EntityID, with helper functions
+	// to add, remove and create relations with other entities.
+	camera := world.NewEntity()
+	player := world.NewEntity()
+	level := world.NewEntity()
+	inventory := world.NewEntity()
 
-type TransformComponent struct {
-	position Vec2D
-	rotation float32
-}
+	// Add adds the components to the entity, and register the component if its not already in the list
+	level.Add(NewTileSet("tileset.map1"))
+		.Add(&TileSetCollider{})
 
-type PhysicsComponent struct {
-	linearAccel, velocity Vec2D
-	angularAccel, torque  float32
-}
+	camera.Add(&Camera2D{ zoom: 40, fovY: 40.0 / 25.0  })
+		.Add(&Follow{ entity: player })
+		.ChildOf(level.EntityID)	
 
-func main() {
-	// initial configuration to create the world, new components can be
-	// added latter with world.RegisterComponents()
-	config := []ecs.ComponentConfig{
-		{ID: TransformID, Component: TransformComponent{}},
-		{ID: PhysicsID, Component: PhysicsComponent{}},
+	// Next step is to create something like "batch add" to reduce the stress on archetypes
+	player.Add(&PlayerControlled{})
+		.Add(&Vec3{ 0, 0, 0 })
+		.Add(&Rotation{ 0.0 })
+		.Add(&BoxCollider{})
+		.Add(&Energy{ total: 100, actual: 100 })
+		.Add(&Mana{ total: 0, actual: 0 })
+		.Add(NewAnimation("player.anim"))
+		.Add(&AnimationPlayer{ state: "idle" })
+		.ChildOf(level.EntityID)	
+
+	inventory.ChildOf(e.EntityID)
+		.Add(&Inventory{})
+
+	allControlledEntities = []EntityID{
+		w.ComponentID(&Vec3{})
+		w.ComponentID(&Rotation{}),
+		w.ComponentID(&PlayerControlled{}),
 	}
 
-	// NewWorld allocates a world and register the components
-	world := ecs.NewWorld(config...)
-
-	// World.NewEntity will add a new entity to this world
-	entity := world.NewEntity()
-	// World.Assign adds a list of components to the entity
-	// If the entity already have the component, the Assign is ignored
-	world.Assign(entity, PhysicsID, TransformID)
-
-	// Any component registered on this entity can be retrieved using World.Component()
-	// It's safe to keep this reference until the entity or the component is removed
-	phys := (*PhysicsComponent)(world.Component(entity, PhysicsID))
-	phys.linearAccel = Vec2D{x: 2, y: 1.5}
-
-	// World.NewFilter creates a cache of entities that have the required components
-	//
-	// This solution is better than using Systems to update the entities because it's possible to
-	// iterate over the filters at variable rate inside your own update function, for example,
-	// the script for AI don't need to update at same frequency as physics and animations
-	//
-	// This filter will be automatically updated when entities or components are added/removed to the world
-	filter := world.NewFilter(TransformID, PhysicsID)
-
-	dt := float32(1.0 / 60.0)
-
-	// filter.Entities() returns the updated list of entities that have the required components
-	for _, entity := range filter.Entities() {
-		// get the components for the entity
-		phys := (*PhysicsComponent)(world.Component(entity, PhysicsID))
-		tr := (*TransformComponent)(world.Component(entity, TransformID))
-
-		phys.velocity.x += phys.linearAccel.x * dt
-		phys.velocity.y += phys.linearAccel.y * dt
-
-		tr.position.x += phys.velocity.x * dt
-		tr.position.y += phys.velocity.y * dt
-
-		phys.velocity.x *= 0.99
-		phys.velocity.y *= 0.99
+	allAnimatedEntities = []EntityID {
+		w.ComponentID(&AnimationStateMachine{})
+		w.ComponentID(&AnimationPlayer{})
 	}
 
-	// When a filter is no longer needed, just call World.RemFilter() to remove it from the world
-	// This is needed as the filters are updated when the world changes
-	world.RemFilter(filter)
+	w.Each(allControlledEntities, func (entityID EntityID, vec, rot, _ unsafe.Pointer) {
+		//
+	})
+	// EachParallel runs async and subdivides the calls in batches to speed up the proccess
+	w.EachParallel(allAnimatedEntities, func(entityID EntityID, animFSM, animPlayer unsafe.Pointer) {
+		//
+	})
+	w.Each(allFollowCameras, func(entityID EntityID, camView, follow unsafe.Pointer) {
+		//
+	})
 }

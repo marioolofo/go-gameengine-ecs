@@ -2,8 +2,9 @@ package ecs_benchmark
 
 import (
 	"fmt"
-	_ "github.com/leopotam/go-ecs"
 	"testing"
+
+	_ "github.com/leopotam/go-ecs"
 )
 
 func LecsGOBench(b *testing.B, entityCount, updateCount int) {

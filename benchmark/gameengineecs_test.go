@@ -4,40 +4,45 @@ import (
 	"fmt"
 	"testing"
 
-	"github.com/marioolofo/go-gameengine-ecs"
+	ecs "github.com/marioolofo/go-gameengine-ecs"
 )
 
 func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
-	config := []ecs.ComponentConfig{
-		{ID: UIDesignComponentID, Component: UIDesign{}},
-		{ID: Transform2DComponentID, Component: Transform2D{}},
-		{ID: Physics2DComponentID, Component: Physics2D{}},
-		{ID: ScriptComponentID, Component: Script{}},
-	}
+	entityPool := ecs.NewEntityPool(100000)
+	factory := ecs.NewComponentFactory()
+	graph := ecs.NewArchetypeGraph(factory)
 
-	world := ecs.NewWorld(config...)
+	uidesignComponentID := factory.Register(ecs.NewComponentRegistry[UIDesign](entityPool))
+	transformComponentID := factory.Register(ecs.NewComponentRegistry[Transform2D](entityPool))
+	physicsComponentID := factory.Register(ecs.NewComponentRegistry[Physics2D](entityPool))
+	scriptComponentID := factory.Register(ecs.NewComponentRegistry[Script](entityPool))
+
+	entities := make([]ecs.EntityID, entityCount/2)
 
 	for i := 0; i < entityCount/2; i++ {
-		e1 := world.NewEntity()
-		world.Assign(e1, UIDesignComponentID, ScriptComponentID)
-		design := (*UIDesign)(world.Component(e1, UIDesignComponentID))
+		e1 := entityPool.New()
+		graph.Add(e1, uidesignComponentID, scriptComponentID)
+
+		arch, row := graph.Get(e1)
+
+		design := (*UIDesign)(arch.GetComponentPtr(0, row))
 		design.name = fmt.Sprint("entity_", i)
 
-		e2 := world.NewEntity()
-		world.Assign(e2, Transform2DComponentID, Physics2DComponentID)
-		phys := (*Physics2D)(world.Component(e2, Physics2DComponentID))
+		e2 := entityPool.New()
+		graph.Add(e2, transformComponentID, physicsComponentID)
+
+		entities[i] = e2
+
+		trArch, row := graph.Get(e2)
+		phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
-	var filter ecs.Filter
-	if BenchUpdateCount > 0 {
-		filter = world.NewFilter(Transform2DComponentID, Physics2DComponentID)
-	}
-
 	for i := 0; i < updateCount; i++ {
-		for _, entity := range filter.Entities() {
-			phys := (*Physics2D)(world.Component(entity, Physics2DComponentID))
-			tr := (*Transform2D)(world.Component(entity, Transform2DComponentID))
+		for _, entity := range entities {
+			trArch, row := graph.Get(entity)
+			tr := (*Transform2D)(trArch.GetComponentPtr(0, row))
+			phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt
