@@ -97,7 +97,7 @@ func (s *storage[T]) Reset() {
 	s.buffer = make([]T, 0, 0)
 }
 
-func (s *storage[T]) Stats() StorageStats {
+func (s storage[T]) Stats() StorageStats {
 	var t T
 	typeOf := reflect.TypeOf(t)
 

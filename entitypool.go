@@ -68,7 +68,7 @@ func (e *entityPool) Recycle(entity EntityID) bool {
 	return true
 }
 
-func (e *entityPool) IsAlive(entity EntityID) bool {
+func (e entityPool) IsAlive(entity EntityID) bool {
 	index := entity.ID()
 	if index == 0 ||
 		index >= uint64(len(e.entities)) {

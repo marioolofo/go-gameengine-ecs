@@ -1,6 +1,7 @@
 package ecs
 
 import (
+	"fmt"
 	"sort"
 	"testing"
 	"unsafe"
@@ -112,7 +113,7 @@ func TestArchetypeGraph(t *testing.T) {
 		ag.AddComponent(e3, oriID)
 		oriTagArch2, _ := ag.Get(e3)
 		assert.True(t, oriTagArch == oriTagArch2, "entities with same components should be in the same archetype")
-		assert.True(t, oriTagArch.entityCount == 2, "number of entities should be correct")
+		assert.True(t, len(oriTagArch.entities) == 2, "number of entities should be correct")
 	})
 
 	t.Run("ArchetypeGraph component values", func(t *testing.T) {
@@ -122,17 +123,17 @@ func TestArchetypeGraph(t *testing.T) {
 			EntityID
 			Position3D
 		}
-		
+
 		count := 10000
-		
+
 		pairs := make([]EntityPos3D, 0)
 		for i := 0; i < count; i++ {
 			pairs = append(pairs, EntityPos3D{entityPool.New(), Position3D{float32(i), float32(i), float32(i)}})
 			comp := []EntityID{posID}
-			if i % 3 == 1 {
+			if i%3 == 1 {
 				comp = append(comp, oriID)
 			}
-			if i % 3 == 2 {
+			if i%3 == 2 {
 				comp = append(comp, tagID)
 			}
 			ag.Add(pairs[i].EntityID, comp...)
@@ -150,10 +151,10 @@ func TestArchetypeGraph(t *testing.T) {
 		}
 
 		for i, pair := range pairs {
-			if i % 3 == 2 {
+			if i%3 == 2 {
 				ag.RemComponent(pair.EntityID, tagID)
 			}
-			if i % 3 == 1 {
+			if i%3 == 1 {
 				ag.RemComponent(pair.EntityID, oriID)
 				ag.AddComponent(pair.EntityID, tagID)
 			}
@@ -168,4 +169,78 @@ func TestArchetypeGraph(t *testing.T) {
 			assert.Equal(t, *pos, pair.Position3D, "values mismatch (want %+v, got %+v)", pair.Position3D, *pos)
 		}
 	})
+}
+
+func BenchmarkArchetypeGraph(b *testing.B) {
+	entityPool := NewEntityPool(100000)
+	factory := NewComponentFactory()
+	graph := NewArchetypeGraph(factory)
+
+	type Vec2D struct {
+		x, y float32
+	}
+
+	type UIDesign struct {
+		name  string
+		flags uint64
+	}
+
+	type Transform2D struct {
+		position Vec2D
+		rotation float32
+	}
+
+	type Physics2D struct {
+		linearAccel, velocity Vec2D
+		angularAccel, torque  float32
+	}
+
+	type Script struct {
+		handle int
+	}
+
+	uidesignComponentID := factory.Register(NewComponentRegistry[UIDesign](entityPool))
+	transformComponentID := factory.Register(NewComponentRegistry[Transform2D](entityPool))
+	physicsComponentID := factory.Register(NewComponentRegistry[Physics2D](entityPool))
+	scriptComponentID := factory.Register(NewComponentRegistry[Script](entityPool))
+
+	entityCount := 10000
+	updateCount := b.N
+
+	for i := 0; i < entityCount/2; i++ {
+		e1 := entityPool.New()
+		graph.Add(e1, uidesignComponentID, scriptComponentID)
+
+		arch, row := graph.Get(e1)
+
+		design := (*UIDesign)(arch.GetComponentPtr(0, row))
+		design.name = fmt.Sprint("entity_", i)
+
+		e2 := entityPool.New()
+		graph.Add(e2, transformComponentID, physicsComponentID)
+
+		trArch, row := graph.Get(e2)
+		phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
+		phys.linearAccel = Vec2D{x: 2, y: 1.5}
+	}
+
+	trPhysList := []EntityID{transformComponentID, physicsComponentID}
+
+	dt := float32(1.0 / 60.0)
+
+	for i := 0; i < updateCount; i++ {
+		graph.Each(trPhysList, func(e Entity) {
+			tr := (*Transform2D)(e.Get(transformComponentID))
+			phys := (*Physics2D)(e.Get(physicsComponentID))
+
+			phys.velocity.x += phys.linearAccel.x * dt
+			phys.velocity.y += phys.linearAccel.y * dt
+
+			tr.position.x += phys.velocity.x * dt
+			tr.position.y += phys.velocity.y * dt
+
+			phys.velocity.x *= 0.99
+			phys.velocity.y *= 0.99
+		})
+	}
 }

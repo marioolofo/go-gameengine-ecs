@@ -13,13 +13,7 @@ type Component struct {
 	NewStorage   func() Storage
 }
 
-type ComponentFactory interface {
-	Register(comp *Component) EntityID
-	GetByType(typ interface{}) (*Component, bool)
-	GetByID(id EntityID) (*Component, bool)
-}
-
-type componentFactory struct {
+type ComponentFactory struct {
 	refs map[reflect.Type]*Component
 	ids  map[uint64]*Component
 }
@@ -33,13 +27,13 @@ func NewComponentSingletonRegistry[T any](ep EntityPool) *Component {
 }
 
 func NewComponentFactory() ComponentFactory {
-	return &componentFactory{
+	return ComponentFactory{
 		make(map[reflect.Type]*Component),
 		make(map[uint64]*Component),
 	}
 }
 
-func (c *componentFactory) Register(comp *Component) EntityID {
+func (c *ComponentFactory) Register(comp *Component) EntityID {
 	_, ok := c.ids[comp.EntityID.ID()]
 	if !ok {
 		c.ids[comp.EntityID.ID()] = comp
@@ -48,14 +42,14 @@ func (c *componentFactory) Register(comp *Component) EntityID {
 	return comp.EntityID
 }
 
-func (c *componentFactory) GetByType(typ interface{}) (*Component, bool) {
+func (c *ComponentFactory) GetByType(typ interface{}) (*Component, bool) {
 	t := reflect.TypeOf(typ)
 	comp, ok := c.refs[t]
 
 	return comp, ok
 }
 
-func (c *componentFactory) GetByID(id EntityID) (*Component, bool) {
+func (c *ComponentFactory) GetByID(id EntityID) (*Component, bool) {
 	comp, ok := c.ids[id.ID()]
 	return comp, ok
 }
