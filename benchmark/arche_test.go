@@ -4,7 +4,6 @@ import (
 	"fmt"
 	"testing"
 
-	fi "github.com/mlange-42/arche/ecs/filter"
 	"github.com/mlange-42/arche/ecs"
 )
 
@@ -35,12 +34,9 @@ func ArcheECSBench(b *testing.B, entityCount, updateCount int) {
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
-	// Create a logic filter.
-	filter := fi.All(transformComponentID, physicsComponentID)
-
 	for i := 0; i < updateCount; i++ {
 		// Get a fresh query iterator.
-		query := world.Query(filter)
+		query := world.Query(transformComponentID, physicsComponentID)
 		// Iterate it.
 		for query.Next() {
 			// Component access through the Query.

@@ -17,8 +17,6 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 	physicsComponentID := factory.Register(ecs.NewComponentRegistry[Physics2D](entityPool))
 	scriptComponentID := factory.Register(ecs.NewComponentRegistry[Script](entityPool))
 
-	entities := make([]ecs.EntityID, entityCount/2)
-
 	for i := 0; i < entityCount/2; i++ {
 		e1 := entityPool.New()
 		graph.Add(e1, uidesignComponentID, scriptComponentID)
@@ -31,18 +29,17 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 		e2 := entityPool.New()
 		graph.Add(e2, transformComponentID, physicsComponentID)
 
-		entities[i] = e2
-
 		trArch, row := graph.Get(e2)
 		phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
+	trPhysList := []ecs.EntityID{transformComponentID, physicsComponentID}
+
 	for i := 0; i < updateCount; i++ {
-		for _, entity := range entities {
-			trArch, row := graph.Get(entity)
-			tr := (*Transform2D)(trArch.GetComponentPtr(0, row))
-			phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
+		graph.Each(trPhysList, func(e ecs.Entity) {
+			tr := (*Transform2D)(e.Get(transformComponentID))
+			phys := (*Physics2D)(e.Get(physicsComponentID))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt
@@ -52,7 +49,7 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 
 			phys.velocity.x *= 0.99
 			phys.velocity.y *= 0.99
-		}
+		})
 	}
 }
 
