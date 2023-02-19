@@ -39,8 +39,8 @@ type ArchetypeGraph interface {
 // ArchEdge defines the link between archetypes.
 // the archetypes are connected to form a graph for faster add/removal of components from entities.
 type ArchEdge struct {
-	add *Archetype
-	rem *Archetype
+	add int
+	rem int
 }
 
 // Archetype contains the definition of a specific entity type.
@@ -72,15 +72,15 @@ func (a *Archetype) GetComponentPtr(col int, row uint32) unsafe.Pointer {
 
 // archetypeEntityIndex informs in wich archetype and row the components for the entity is stored.
 type archetypeEntityIndex struct {
-	archetype *Archetype
+	archetype int
 	row       uint32
 }
 
 type archetypeGraph struct {
-	factory        ComponentFactory
-	rootArchetype  *Archetype
-	entityMap      map[EntityID]archetypeEntityIndex
-	archetypeCache map[uint32]*Archetype
+	factory      ComponentFactory
+	entityMap    map[EntityID]archetypeEntityIndex
+	archetypeMap map[uint32]int
+	archetypes   []Archetype
 }
 
 // NewArchetypeGraph returns an ArchetypeGraph responsible for creating and caching the
@@ -88,12 +88,11 @@ type archetypeGraph struct {
 func NewArchetypeGraph(factory ComponentFactory) ArchetypeGraph {
 	arch := &archetypeGraph{
 		factory,
-		nil,
 		make(map[EntityID]archetypeEntityIndex),
-		make(map[uint32]*Archetype),
+		make(map[uint32]int),
+		make([]Archetype, 0, 256),
 	}
-	arch.rootArchetype = arch.newArchetype(0, 0)
-	arch.archetypeCache[0] = arch.rootArchetype
+	arch.archetypeMap[0] = arch.newArchetype(0, 0)
 	return arch
 }
 
@@ -123,7 +122,7 @@ func (a *archetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
 		return nil, 0
 	}
 
-	return cache.archetype, cache.row
+	return &a.archetypes[cache.archetype], cache.row
 }
 
 func (a *archetypeGraph) AddComponent(entity, component EntityID) {
@@ -133,14 +132,16 @@ func (a *archetypeGraph) AddComponent(entity, component EntityID) {
 		return
 	}
 
+	arch := &a.archetypes[cache.archetype]
+
 	// If already have the component, do nothing
-	components := cache.archetype.components
+	components := arch.components
 	_, found := sort.Find(len(components), MakeEntityFindFn(components, component))
 	if found {
 		return
 	}
 
-	a.updateEntityRelation(entity, component, cache, true)
+	a.updateEntityRelation(entity, component, cache.archetype, cache.row, true)
 }
 
 func (a *archetypeGraph) RemComponent(entity, component EntityID) {
@@ -149,92 +150,98 @@ func (a *archetypeGraph) RemComponent(entity, component EntityID) {
 		return
 	}
 
-	components := cache.archetype.components
+	arch := &a.archetypes[cache.archetype]
+
+	components := arch.components
 	_, found := sort.Find(len(components), MakeEntityFindFn(components, component))
 	if !found {
 		return
 	}
 	// keep the entity even if it has no components, because it still exists in the graph
-	a.updateEntityRelation(entity, component, cache, false)
+	a.updateEntityRelation(entity, component, cache.archetype, cache.row, false)
 }
 
-func (a *archetypeGraph) findOrCreateArchetype(components []EntityID) *Archetype {
+func (a *archetypeGraph) findOrCreateArchetype(components []EntityID) int {
 	if len(components) == 0 {
-		return a.rootArchetype
+		return 0
 	}
 
 	sort.Sort(EntityIDSlice(components))
 	key := HashEntityIDArray(components, 0)
 
-	arch, ok := a.archetypeCache[key]
+	arch, ok := a.archetypeMap[key]
 	if !ok {
 		arch = a.prepareNewArchetype(key, components)
-		a.archetypeCache[key] = arch
+		a.archetypeMap[key] = arch
 	}
 	return arch
 }
 
 func (a *archetypeGraph) updateEntityRelation(
 	entity, component EntityID,
-	index archetypeEntityIndex, toAdd bool) {
+	from int, row uint32, toAdd bool) {
 
-	arch := a.findOrCreateConnection(index.archetype, component, toAdd)
-	index.row = a.moveEntity(entity, index.archetype, arch, index.row)
-	index.archetype = arch
-	a.entityMap[entity] = index
+	arch := a.findOrCreateConnection(from, component, toAdd)
+	newRow := a.moveEntity(entity, from, arch, row)
+	a.entityMap[entity] = archetypeEntityIndex{arch, newRow}
 }
 
-func (a *archetypeGraph) findOrCreateConnection(archetype *Archetype, component EntityID, toAdd bool) *Archetype {
-	edge, ok := archetype.edges[component]
-	if ok && edge.add != nil {
+func (a *archetypeGraph) findOrCreateConnection(from int, component EntityID, toAdd bool) int {
+	fromArch := a.archetypes[from]
+	edge, ok := fromArch.edges[component]
+	if ok && edge.add > -1 {
 		return edge.add
 	}
 
 	var components []EntityID
 	if toAdd {
-		components = make([]EntityID, len(archetype.components)+1)
-		copy(components, archetype.components)
-		components[len(archetype.components)] = component
+		components = make([]EntityID, len(fromArch.components)+1)
+		copy(components, fromArch.components)
+		components[len(fromArch.components)] = component
 		sort.Sort(EntityIDSlice(components))
 	} else {
-		index, _ := sort.Find(len(archetype.components), MakeEntityFindFn(archetype.components, component))
-		components = append(archetype.components[0:index], archetype.components[index+1:]...)
+		index, _ := sort.Find(len(fromArch.components), MakeEntityFindFn(fromArch.components, component))
+		components = append(fromArch.components[0:index], fromArch.components[index+1:]...)
 	}
 
 	key := HashEntityIDArray(components, 0)
 
-	arch, ok := a.archetypeCache[key]
+	index, ok := a.archetypeMap[key]
 	if !ok {
-		arch = a.prepareNewArchetype(key, components)
-		a.archetypeCache[key] = arch
+		index = a.prepareNewArchetype(key, components)
+		a.archetypeMap[key] = index
 	}
 
-	prev, _ := arch.edges[component]
+	arch := a.archetypes[index]
+
 	if toAdd {
-		arch.edges[component] = ArchEdge{add: prev.add, rem: archetype}
-		archetype.edges[component] = ArchEdge{add: arch, rem: edge.rem}
+		arch.edges[component] = ArchEdge{add: -1, rem: from}
+		fromArch.edges[component] = ArchEdge{add: index, rem: -1}
 	} else {
-		arch.edges[component] = ArchEdge{add: archetype, rem: prev.rem}
-		archetype.edges[component] = ArchEdge{add: edge.add, rem: arch}
+		arch.edges[component] = ArchEdge{add: from, rem: -1}
+		fromArch.edges[component] = ArchEdge{add: -1, rem: index}
 	}
 
-	return arch
+	return index
 }
 
-func (a *archetypeGraph) moveEntity(entity EntityID, from, to *Archetype, row uint32) uint32 {
+func (a *archetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) uint32 {
 	toColIndex := 0
 	toRow := a.getUnusedRow(to, entity)
 
-	for index, col := range from.columns {
+	fromArch := &a.archetypes[from]
+	toArch := &a.archetypes[to]
+
+	for index, col := range fromArch.columns {
 		// skip singletons
 		if col != nil {
-			for toColIndex < len(to.columns) && to.components[toColIndex] != from.components[index] {
+			for toColIndex < len(toArch.columns) && toArch.components[toColIndex] != fromArch.components[index] {
 				toColIndex++
 			}
-			if toColIndex >= len(to.columns) {
+			if toColIndex >= len(toArch.columns) {
 				break
 			}
-			to.columns[toColIndex].Copy(uint(toRow), col.Get(uint(row)))
+			toArch.columns[toColIndex].Copy(uint(toRow), col.Get(uint(row)))
 		}
 	}
 
@@ -243,19 +250,24 @@ func (a *archetypeGraph) moveEntity(entity EntityID, from, to *Archetype, row ui
 	return toRow
 }
 
-func (a *archetypeGraph) newArchetype(key uint32, componentCount int) *Archetype {
-	return &Archetype{
+func (a *archetypeGraph) newArchetype(key uint32, componentCount int) int {
+	index := len(a.archetypes)
+	a.archetypes = append(a.archetypes, Archetype{
 		id:         key,
 		mask:       0,
 		components: make([]EntityID, componentCount),
 		columns:    make([]Storage, componentCount),
 		edges:      make(map[EntityID]ArchEdge),
 		entities:   make([]EntityID, 0),
-	}
+	})
+
+	return index
 }
 
-func (a *archetypeGraph) prepareNewArchetype(key uint32, components []EntityID) *Archetype {
-	arch := a.newArchetype(key, len(components))
+func (a *archetypeGraph) prepareNewArchetype(key uint32, components []EntityID) int {
+	index := a.newArchetype(key, len(components))
+	arch := &a.archetypes[index]
+
 	for index, comp := range components {
 		arch.components[index] = comp
 		arch.mask |= (1 << (comp.ID() & 31))
@@ -267,26 +279,29 @@ func (a *archetypeGraph) prepareNewArchetype(key uint32, components []EntityID) 
 			arch.columns[index] = reg.NewStorage()
 		}
 	}
-	return arch
+	return index
 }
 
-func (a *archetypeGraph) getUnusedRow(archetype *Archetype, entity EntityID) uint32 {
-	row := uint32(len(archetype.entities))
-	archetype.entities = append(archetype.entities, entity)
+func (a *archetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
+	arch := &a.archetypes[index]
+	row := uint32(len(arch.entities))
+	arch.entities = append(arch.entities, entity)
 	return row
 }
 
-func (a *archetypeGraph) compressRow(archetype *Archetype, row uint32) {
-	lastRow := uint(len(archetype.entities) - 1)
-	entity := archetype.entities[lastRow]
+func (a *archetypeGraph) compressRow(index int, row uint32) {
+	arch := a.archetypes[index]
 
-	for _, col := range archetype.columns {
+	lastRow := uint(len(arch.entities) - 1)
+	entity := arch.entities[lastRow]
+
+	for _, col := range arch.columns {
 		if col != nil {
 			col.Copy(uint(row), col.Get(lastRow))
 		}
 	}
-	archetype.entities[row] = entity
-	archetype.entities = archetype.entities[:lastRow]
+	arch.entities[row] = entity
+	arch.entities = arch.entities[:lastRow]
 	cache, _ := a.entityMap[entity]
 	cache.row = uint32(row)
 	a.entityMap[entity] = cache
@@ -303,7 +318,8 @@ func (a *archetypeGraph) Each(components []EntityID, fn func(entity Entity)) {
 	total := len(components)
 	entity := Entity{}
 
-	for _, arch := range a.archetypeCache {
+	for i := 0; i < len(a.archetypes); i++ {
+		arch := &a.archetypes[i]
 		if len(arch.entities) == 0 {
 			continue
 		}
