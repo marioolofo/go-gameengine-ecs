@@ -8,6 +8,8 @@ github.com/leopotam/go-ecs v0.0.0-20210307213804-a3ab96b9d289 h1:UX7+jESfRXzvM/z
 github.com/leopotam/go-ecs v0.0.0-20210307213804-a3ab96b9d289/go.mod h1:NHVW8ZI99vazv2fs0lXpa78iXZyN5QM/fbHGgcqHYe4=
 github.com/mlange-42/arche v0.3.1 h1:A104aleZiu9O4O0baK7EDh8/YWt1wYeByXEsEVIXExE=
 github.com/mlange-42/arche v0.3.1/go.mod h1:cgOiMHWCbNAb5L5mCihS2yzdk1Zll1IoBJL+3wVm0AM=
+github.com/mlange-42/arche v0.4.0 h1:/SAfRRV5N2xHMrUvBgFwIsGuO3sM+sqZ/QUxj3rr14Y=
+github.com/mlange-42/arche v0.4.0/go.mod h1:cgOiMHWCbNAb5L5mCihS2yzdk1Zll1IoBJL+3wVm0AM=
 github.com/pmezard/go-difflib v1.0.0 h1:4DBwDE0NGyQoBHbLQYPwSUPoCMWR5BEzIk/f1lZbAQM=
 github.com/pmezard/go-difflib v1.0.0/go.mod h1:iKH77koFhYxTK1pcRnkKkqfTogsbg7gZNVY4sRDYZ/4=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=

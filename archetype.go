@@ -32,10 +32,10 @@ func (e *QueryIterator) Next() bool {
 
 	e.archIndex++
 	for e.archIndex < len(e.archetypes) {
-		arch := e.archetypes[e.archIndex]
+		arch := &e.archetypes[e.archIndex]
 		if arch.mask.Contains(e.mask) {
 			e.entityIndex = -1
-			e.entityTotal = len(arch.entities)
+			e.entityTotal = len(arch.entities) - 1
 			e.columns = arch.columns
 			return true
 		}

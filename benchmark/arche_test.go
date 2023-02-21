@@ -36,7 +36,7 @@ func ArcheECSBench(b *testing.B, entityCount, updateCount int) {
 
 	for i := 0; i < updateCount; i++ {
 		// Get a fresh query iterator.
-		query := world.Query(transformComponentID, physicsComponentID)
+		query := world.Query(ecs.All(transformComponentID, physicsComponentID))
 		// Iterate it.
 		for query.Next() {
 			// Component access through the Query.

@@ -213,14 +213,14 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 
 		arch, row := graph.Get(e1)
 
-		design := (*UIDesign)(arch.GetComponentPtr(0, row))
+		design := (*UIDesign)(arch.GetComponentPtr(int(uidesignComponentID), row))
 		design.name = fmt.Sprint("entity_", i)
 
 		e2 := entityPool.New()
 		graph.Add(e2, transformComponentID, physicsComponentID)
 
 		trArch, row := graph.Get(e2)
-		phys := (*Physics2D)(trArch.GetComponentPtr(1, row))
+		phys := (*Physics2D)(trArch.GetComponentPtr(int(physicsComponentID), row))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
@@ -228,10 +228,13 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 
 	dt := float32(1.0 / 60.0)
 
+	count := 0
+
 	for i := 0; i < updateCount; i++ {
 		var iter QueryIterator
 		iter.Prepare(mask, graph)
 		for iter.Next() {
+			count++
 			tr := (*Transform2D)(iter.Get(transformComponentID))
 			phys := (*Physics2D)(iter.Get(physicsComponentID))
 
@@ -245,4 +248,5 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 			phys.velocity.y *= 0.99
 		}
 	}
+	b.Logf("[geecs] found %d items to query", count)
 }
