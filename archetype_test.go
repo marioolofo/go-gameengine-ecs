@@ -17,7 +17,7 @@ func testCheckArchetype(t *testing.T, arch *Archetype, components []EntityID) {
 	for index, id := range components {
 		assert.Equal(t, arch.components[index], id, "Archetype with wrong component list (want %x, got %d)", id, arch.components[index])
 		if !id.IsSingleton() {
-			assert.NotNil(t, arch.columns[index], "components should have a Storage allocated")
+			assert.NotNil(t, arch.columns[arch.components[index].ID()], "components should have a Storage allocated")
 		}
 	}
 }
@@ -141,12 +141,12 @@ func TestArchetypeGraph(t *testing.T) {
 
 		for _, pair := range pairs {
 			arch, row := ag.Get(pair.EntityID)
-			arch.columns[0].Copy(uint(row), unsafe.Pointer(&pair.Position3D))
+			arch.columns[posID.ID()].Copy(uint(row), unsafe.Pointer(&pair.Position3D))
 		}
 
 		for _, pair := range pairs {
 			arch, row := ag.Get(pair.EntityID)
-			pos := (*Position3D)(arch.columns[0].Get(uint(row)))
+			pos := (*Position3D)(arch.columns[posID.ID()].Get(uint(row)))
 			assert.Equal(t, *pos, pair.Position3D, "values mismatch (want %+v, got %+v)", pair.Position3D, *pos)
 		}
 
@@ -159,13 +159,13 @@ func TestArchetypeGraph(t *testing.T) {
 				ag.AddComponent(pair.EntityID, tagID)
 			}
 			arch, row := ag.Get(pair.EntityID)
-			pos := (*Position3D)(arch.columns[0].Get(uint(row)))
+			pos := (*Position3D)(arch.columns[posID.ID()].Get(uint(row)))
 			assert.Equal(t, *pos, pair.Position3D, "values mismatch (want %+v, got %+v)", pair.Position3D, *pos)
 		}
 
 		for _, pair := range pairs {
 			arch, row := ag.Get(pair.EntityID)
-			pos := (*Position3D)(arch.columns[0].Get(uint(row)))
+			pos := (*Position3D)(arch.columns[posID.ID()].Get(uint(row)))
 			assert.Equal(t, *pos, pair.Position3D, "values mismatch (want %+v, got %+v)", pair.Position3D, *pos)
 		}
 	})
@@ -224,14 +224,16 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
-	trPhysList := []EntityID{transformComponentID, physicsComponentID}
+	mask := MakeMask(transformComponentID.UInt64(), physicsComponentID.UInt64())
 
 	dt := float32(1.0 / 60.0)
 
 	for i := 0; i < updateCount; i++ {
-		graph.Each(trPhysList, func(e Entity) {
-			tr := (*Transform2D)(e.Get(transformComponentID))
-			phys := (*Physics2D)(e.Get(physicsComponentID))
+		var iter QueryIterator
+		iter.Prepare(mask, graph)
+		for iter.Next() {
+			tr := (*Transform2D)(iter.Get(transformComponentID))
+			phys := (*Physics2D)(iter.Get(physicsComponentID))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt
@@ -241,6 +243,6 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 
 			phys.velocity.x *= 0.99
 			phys.velocity.y *= 0.99
-		})
+		}
 	}
 }

@@ -10,7 +10,7 @@ type Component struct {
 	reflect.Type
 	reflect.Value
 	SingletonPtr unsafe.Pointer
-	NewStorage   func() Storage
+	NewStorage   func(initialSize, increment uint) Storage
 }
 
 type ComponentFactory struct {
@@ -70,11 +70,14 @@ func newComponentRegistry[T any](ep EntityPool, singleton bool) *Component {
 		typeOf,
 		value,
 		value.UnsafePointer(),
-		func() Storage {
+		func(ini, incr uint) Storage {
 			if singleton {
 				return nil
 			}
-			return NewStorage[T](0, 0)
+			if ini < 1 {
+				ini = 1
+			}
+			return NewStorage[T](ini, incr)
 		},
 	}
 }

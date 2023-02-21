@@ -1,3 +1,4 @@
+// go:build -gcflags=-B
 package ecs
 
 import (
@@ -34,12 +35,13 @@ type StorageStats struct {
 }
 
 const (
-	StorageBufferIncrementBy = 1000
+	StorageBufferIncrementBy = 10000
 )
 
 type storage[T any] struct {
 	increment uint
 	buffer    []T
+	bufferPtr unsafe.Pointer
 }
 
 // NewStorage returns an implementation for Storage
@@ -49,26 +51,29 @@ func NewStorage[T any](initialLen, increment uint) Storage {
 		increment = StorageBufferIncrementBy
 	}
 
+	buffer := make([]T, initialLen, initialLen)
 	return &storage[T]{
 		increment,
-		make([]T, initialLen, initialLen),
+		buffer,
+		unsafe.Pointer(&buffer[0]),
 	}
 }
 
 func (s *storage[T]) Get(index uint) unsafe.Pointer {
-	if int(index) >= cap(s.buffer) {
-		s.ensureCap(index)
-	}
-	return unsafe.Pointer(&s.buffer[index])
+	var t T
+	return unsafe.Add(s.bufferPtr, unsafe.Sizeof(t)*uintptr(index))
 }
 
 func (s *storage[T]) Set(index uint, value interface{}) bool {
-	v, ok := value.(*T)
-	if index >= uint(cap(s.buffer)) || !ok {
+	if int(index) >= len(s.buffer) {
 		return false
 	}
-	s.buffer[index] = *v
-	return true
+	v, ok := value.(*T)
+	if ok {
+		ptr := (*T)(s.Get(index))
+		*ptr = *v
+	}
+	return ok
 }
 
 func (s *storage[T]) Copy(index uint, ptr unsafe.Pointer) {
@@ -86,15 +91,12 @@ func (s *storage[T]) Shrink(to uint) {
 }
 
 func (s *storage[T]) Expand(to uint) {
-	if to > uint(len(s.buffer)) {
-		prev := s.buffer
-		s.buffer = make([]T, int(to))
-		copy(s.buffer, prev)
-	}
+	s.ensureCap(to)
 }
 
 func (s *storage[T]) Reset() {
 	s.buffer = make([]T, 0, 0)
+	s.bufferPtr = unsafe.Pointer(nil)
 }
 
 func (s storage[T]) Stats() StorageStats {
@@ -112,6 +114,7 @@ func (s *storage[T]) ensureCap(size uint) {
 	if size >= uint(cap(s.buffer)) {
 		prevBuffer := s.buffer
 		s.buffer = make([]T, int(size+s.increment), int(size+s.increment))
+		s.bufferPtr = unsafe.Pointer(&s.buffer[0])
 		copy(s.buffer, prevBuffer)
 	}
 }

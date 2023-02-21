@@ -50,7 +50,6 @@ func (e *entityPool) New() EntityID {
 func (e *entityPool) NewComponent() EntityID {
 	entity := e.New()
 	index := entity.ID()
-	entity = entity.Component()
 	e.entities[index] = entity
 	return entity
 }

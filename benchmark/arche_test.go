@@ -40,8 +40,8 @@ func ArcheECSBench(b *testing.B, entityCount, updateCount int) {
 		// Iterate it.
 		for query.Next() {
 			// Component access through the Query.
-			phys := (*Physics2D)(query.Get(physicsComponentID))
 			tr := (*Transform2D)(query.Get(transformComponentID))
+			phys := (*Physics2D)(query.Get(physicsComponentID))
 			// Update component fields.
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt

@@ -5,35 +5,47 @@ import (
 	"unsafe"
 )
 
-type Entity struct {
-	EntityID
-	arch *Archetype
-	row  uint
+type QueryIterator struct {
+	archetypes  []Archetype
+	columns     []Storage
+	mask        Mask
+	archIndex   int
+	entityIndex int
+	entityTotal int
 }
 
-func (e Entity) Get(component EntityID) unsafe.Pointer {
-	for i, c := range e.arch.components {
-		if c == component {
-			return e.arch.columns[i].Get(e.row)
-		}
+func (e *QueryIterator) Prepare(mask Mask, graph *ArchetypeGraph) bool {
+	e.archetypes = graph.archetypes
+	e.mask = mask
+	e.entityIndex = 0
+	e.entityTotal = 0
+	e.archIndex = -1
+
+	return e.Next()
+}
+
+func (e *QueryIterator) Next() bool {
+	if e.entityIndex < e.entityTotal {
+		e.entityIndex++
+		return true
 	}
-	panic("should never happen")
+
+	e.archIndex++
+	for e.archIndex < len(e.archetypes) {
+		arch := e.archetypes[e.archIndex]
+		if arch.mask.Contains(e.mask) {
+			e.entityIndex = -1
+			e.entityTotal = len(arch.entities)
+			e.columns = arch.columns
+			return true
+		}
+		e.archIndex++
+	}
+	return false
 }
 
-// ArchetypeGraph defines the operations to create and cache the relation between entities and components.
-type ArchetypeGraph interface {
-	// Add adds the entity in the graph, managing the creation and caching of the relation
-	Add(entity EntityID, components ...EntityID)
-	// Rem removes the entity and it's components from the graph
-	Rem(entity EntityID)
-	// AddComponent adds a component to an entity, doing all the transition necessary for the new archetype
-	AddComponent(entity, component EntityID)
-	// RemComponent removes a component from an entity, doing all the transition necessary for the new archetype
-	RemComponent(entity, component EntityID)
-	// Get returns the archetype and row for a given entity
-	Get(entity EntityID) (*Archetype, uint32)
-
-	Each(components []EntityID, fn func(entity Entity))
+func (e *QueryIterator) Get(component EntityID) unsafe.Pointer {
+	return e.columns[component].Get(uint(e.entityIndex))
 }
 
 // ArchEdge defines the link between archetypes.
@@ -43,27 +55,46 @@ type ArchEdge struct {
 	rem int
 }
 
+type Mask [4]uint64
+
+func MakeMask(bits ...uint64) Mask {
+	mask := Mask{}
+	for _, bit := range bits {
+		mask.Set(bit)
+	}
+	return mask
+}
+
+func (m *Mask) Set(bit uint64) {
+	m[bit>>6] |= (1 << (bit & 63))
+}
+
+func (m *Mask) Clear(bit uint64) {
+	m[bit>>6] &= ^(1 << (bit & 63))
+}
+
+func (m Mask) IsSet(bit uint64) bool {
+	return m[bit>>6]&(1<<(bit&63)) != 0
+}
+
+func (m Mask) Contains(sub Mask) bool {
+	return m[0]&sub[0] == sub[0] &&
+		m[1]&sub[1] == sub[1] &&
+		m[2]&sub[1] == sub[2] &&
+		m[3]&sub[1] == sub[3]
+}
+
 // Archetype contains the definition of a specific entity type.
 // it contains the component ids and the storage for the components.
 // when a component is a singleton, the Storage is nil and the data is accessed
 // by the ComponentFactory.SingletonPtr
 type Archetype struct {
 	id         uint32
-	mask       uint32
+	mask       Mask
 	components []EntityID
 	columns    []Storage
 	edges      map[EntityID]ArchEdge
 	entities   []EntityID
-}
-
-func (a *Archetype) GetColumnsFor(components ...EntityID) []int {
-	result := []int{}
-
-	for _, component := range components {
-		index, _ := sort.Find(len(a.components), MakeEntityFindFn(a.components, component))
-		result = append(result, index)
-	}
-	return result
 }
 
 func (a *Archetype) GetComponentPtr(col int, row uint32) unsafe.Pointer {
@@ -76,7 +107,7 @@ type archetypeEntityIndex struct {
 	row       uint32
 }
 
-type archetypeGraph struct {
+type ArchetypeGraph struct {
 	factory      ComponentFactory
 	entityMap    map[EntityID]archetypeEntityIndex
 	archetypeMap map[uint32]int
@@ -85,8 +116,8 @@ type archetypeGraph struct {
 
 // NewArchetypeGraph returns an ArchetypeGraph responsible for creating and caching the
 // relationship between entities and components.
-func NewArchetypeGraph(factory ComponentFactory) ArchetypeGraph {
-	arch := &archetypeGraph{
+func NewArchetypeGraph(factory ComponentFactory) *ArchetypeGraph {
+	arch := &ArchetypeGraph{
 		factory,
 		make(map[EntityID]archetypeEntityIndex),
 		make(map[uint32]int),
@@ -96,7 +127,7 @@ func NewArchetypeGraph(factory ComponentFactory) ArchetypeGraph {
 	return arch
 }
 
-func (a *archetypeGraph) Add(entity EntityID, components ...EntityID) {
+func (a *ArchetypeGraph) Add(entity EntityID, components ...EntityID) {
 	_, exists := a.entityMap[entity]
 	if exists {
 		panic("trying to add the same entity twice (did you mean AddComponent instead?)")
@@ -108,7 +139,7 @@ func (a *archetypeGraph) Add(entity EntityID, components ...EntityID) {
 	a.entityMap[entity] = archetypeEntityIndex{archetype, row}
 }
 
-func (a *archetypeGraph) Rem(entity EntityID) {
+func (a *ArchetypeGraph) Rem(entity EntityID) {
 	cache, ok := a.entityMap[entity]
 	if ok {
 		a.compressRow(cache.archetype, cache.row)
@@ -116,7 +147,7 @@ func (a *archetypeGraph) Rem(entity EntityID) {
 	}
 }
 
-func (a *archetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
+func (a *ArchetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		return nil, 0
@@ -125,7 +156,7 @@ func (a *archetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
 	return &a.archetypes[cache.archetype], cache.row
 }
 
-func (a *archetypeGraph) AddComponent(entity, component EntityID) {
+func (a *ArchetypeGraph) AddComponent(entity, component EntityID) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		// should panic?
@@ -144,7 +175,7 @@ func (a *archetypeGraph) AddComponent(entity, component EntityID) {
 	a.updateEntityRelation(entity, component, cache.archetype, cache.row, true)
 }
 
-func (a *archetypeGraph) RemComponent(entity, component EntityID) {
+func (a *ArchetypeGraph) RemComponent(entity, component EntityID) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		return
@@ -161,7 +192,7 @@ func (a *archetypeGraph) RemComponent(entity, component EntityID) {
 	a.updateEntityRelation(entity, component, cache.archetype, cache.row, false)
 }
 
-func (a *archetypeGraph) findOrCreateArchetype(components []EntityID) int {
+func (a *ArchetypeGraph) findOrCreateArchetype(components []EntityID) int {
 	if len(components) == 0 {
 		return 0
 	}
@@ -177,7 +208,7 @@ func (a *archetypeGraph) findOrCreateArchetype(components []EntityID) int {
 	return arch
 }
 
-func (a *archetypeGraph) updateEntityRelation(
+func (a *ArchetypeGraph) updateEntityRelation(
 	entity, component EntityID,
 	from int, row uint32, toAdd bool) {
 
@@ -186,7 +217,7 @@ func (a *archetypeGraph) updateEntityRelation(
 	a.entityMap[entity] = archetypeEntityIndex{arch, newRow}
 }
 
-func (a *archetypeGraph) findOrCreateConnection(from int, component EntityID, toAdd bool) int {
+func (a *ArchetypeGraph) findOrCreateConnection(from int, component EntityID, toAdd bool) int {
 	fromArch := a.archetypes[from]
 	edge, ok := fromArch.edges[component]
 	if ok && edge.add > -1 {
@@ -225,23 +256,20 @@ func (a *archetypeGraph) findOrCreateConnection(from int, component EntityID, to
 	return index
 }
 
-func (a *archetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) uint32 {
-	toColIndex := 0
+func (a *ArchetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) uint32 {
 	toRow := a.getUnusedRow(to, entity)
 
 	fromArch := &a.archetypes[from]
 	toArch := &a.archetypes[to]
 
-	for index, col := range fromArch.columns {
+	for _, comp := range fromArch.components {
+		if !toArch.mask.IsSet(comp.ID()) {
+			continue
+		}
 		// skip singletons
+		col := fromArch.columns[comp.ID()]
 		if col != nil {
-			for toColIndex < len(toArch.columns) && toArch.components[toColIndex] != fromArch.components[index] {
-				toColIndex++
-			}
-			if toColIndex >= len(toArch.columns) {
-				break
-			}
-			toArch.columns[toColIndex].Copy(uint(toRow), col.Get(uint(row)))
+			toArch.columns[comp.ID()].Copy(uint(toRow), col.Get(uint(row)))
 		}
 	}
 
@@ -250,13 +278,13 @@ func (a *archetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) u
 	return toRow
 }
 
-func (a *archetypeGraph) newArchetype(key uint32, componentCount int) int {
+func (a *ArchetypeGraph) newArchetype(key uint32, componentCount int) int {
 	index := len(a.archetypes)
 	a.archetypes = append(a.archetypes, Archetype{
 		id:         key,
-		mask:       0,
+		mask:       Mask{},
 		components: make([]EntityID, componentCount),
-		columns:    make([]Storage, componentCount),
+		columns:    make([]Storage, 256),
 		edges:      make(map[EntityID]ArchEdge),
 		entities:   make([]EntityID, 0),
 	})
@@ -264,32 +292,38 @@ func (a *archetypeGraph) newArchetype(key uint32, componentCount int) int {
 	return index
 }
 
-func (a *archetypeGraph) prepareNewArchetype(key uint32, components []EntityID) int {
+func (a *ArchetypeGraph) prepareNewArchetype(key uint32, components []EntityID) int {
 	index := a.newArchetype(key, len(components))
 	arch := &a.archetypes[index]
 
 	for index, comp := range components {
 		arch.components[index] = comp
-		arch.mask |= (1 << (comp.ID() & 31))
+		arch.mask.Set(comp.ID())
 		if !comp.IsSingleton() {
 			reg, ok := a.factory.GetByID(comp)
 			if !ok {
 				panic("trying to use components not registered (did you registered it in the ComponentFactory?)")
 			}
-			arch.columns[index] = reg.NewStorage()
+			arch.columns[comp.ID()] = reg.NewStorage(100, 0)
 		}
 	}
 	return index
 }
 
-func (a *archetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
+func (a *ArchetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
 	arch := &a.archetypes[index]
 	row := uint32(len(arch.entities))
 	arch.entities = append(arch.entities, entity)
+	for _, comp := range arch.components {
+		col := arch.columns[comp.ID()]
+		if col != nil {
+			col.Expand(uint(row + 1))
+		}
+	}
 	return row
 }
 
-func (a *archetypeGraph) compressRow(index int, row uint32) {
+func (a *ArchetypeGraph) compressRow(index int, row uint32) {
 	arch := a.archetypes[index]
 
 	lastRow := uint(len(arch.entities) - 1)
@@ -305,45 +339,4 @@ func (a *archetypeGraph) compressRow(index int, row uint32) {
 	cache, _ := a.entityMap[entity]
 	cache.row = uint32(row)
 	a.entityMap[entity] = cache
-}
-
-func (a *archetypeGraph) Each(components []EntityID, fn func(entity Entity)) {
-	sort.Sort(EntityIDSlice(components))
-
-	mask := uint32(0)
-	for _, c := range components {
-		mask |= (1 << (c.ID() & 31))
-	}
-
-	total := len(components)
-	entity := Entity{}
-
-	for i := 0; i < len(a.archetypes); i++ {
-		arch := &a.archetypes[i]
-		if len(arch.entities) == 0 {
-			continue
-		}
-		if arch.mask&mask != mask {
-			continue
-		}
-		found := 0
-		for _, c := range arch.components {
-			if c > components[found] {
-				continue
-			}
-			if components[found] == c {
-				found++
-			}
-		}
-		if found != total {
-			continue
-		}
-
-		entity.arch = arch
-		for row, e := range arch.entities {
-			entity.EntityID = e
-			entity.row = uint(row)
-			fn(entity)
-		}
-	}
 }
