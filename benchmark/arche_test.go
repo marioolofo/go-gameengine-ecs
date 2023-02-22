@@ -9,7 +9,7 @@ import (
 
 func ArcheECSBench(b *testing.B, entityCount, updateCount int) {
 	// Create a World.
-	world := ecs.NewWorld()
+	world := ecs.NewWorld(ecs.NewConfig().WithCapacityIncrement(1000))
 
 	uidesignComponentID := ecs.ComponentID[UIDesign](&world)
 	transformComponentID := ecs.ComponentID[Transform2D](&world)
@@ -22,13 +22,11 @@ func ArcheECSBench(b *testing.B, entityCount, updateCount int) {
 	// Create entities.
 	for i := 0; i < entityCount/2; i++ {
 		// Create an Entity wth these components.
-		e1 := world.NewEntity()
-		world.Add(e1, uidesignScriptComponents...)
+		e1 := world.NewEntity(uidesignScriptComponents...)
 		design := (*UIDesign)(world.Get(e1, uidesignComponentID))
 		design.name = fmt.Sprint("entity_", i)
 
-		e2 := world.NewEntity()
-		world.Add(e2, transfPhysComponents...)
+		e2 := world.NewEntity(transfPhysComponents...)
 
 		phys := (*Physics2D)(world.Get(e2, physicsComponentID))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}

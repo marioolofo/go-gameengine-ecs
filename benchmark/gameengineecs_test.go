@@ -8,42 +8,34 @@ import (
 )
 
 func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
-	entityPool := ecs.NewEntityPool(100000)
-	factory := ecs.NewComponentFactory()
-	graph := ecs.NewArchetypeGraph(factory)
+	world := ecs.NewWorld(uint(entityCount + 10))
 
-	uidesignComponentID := factory.Register(ecs.NewComponentRegistry[UIDesign](entityPool))
-	transformComponentID := factory.Register(ecs.NewComponentRegistry[Transform2D](entityPool))
-	physicsComponentID := factory.Register(ecs.NewComponentRegistry[Physics2D](entityPool))
-	scriptComponentID := factory.Register(ecs.NewComponentRegistry[Script](entityPool))
+	world.Register(ecs.NewComponentRegistry[UIDesign](UIDesignComponentID))
+	world.Register(ecs.NewComponentRegistry[Transform2D](Transform2DComponentID))
+	world.Register(ecs.NewComponentRegistry[Physics2D](Physics2DComponentID))
+	world.Register(ecs.NewComponentRegistry[Script](ScriptComponentID))
 
 	for i := 0; i < entityCount/2; i++ {
-		e1 := entityPool.New()
-		graph.Add(e1, uidesignComponentID, scriptComponentID)
+		e1 := world.NewEntity(UIDesignComponentID, ScriptComponentID)
 
-		arch, row := graph.Get(e1)
-
-		design := (*UIDesign)(arch.GetComponentPtr(int(uidesignComponentID), row))
+		design := (*UIDesign)(world.GetComponent(e1, UIDesignComponentID))
 		design.name = fmt.Sprint("entity_", i)
 
-		e2 := entityPool.New()
-		graph.Add(e2, transformComponentID, physicsComponentID)
+		e2 := world.NewEntity(Transform2DComponentID, Physics2DComponentID)
 
-		trArch, row := graph.Get(e2)
-		phys := (*Physics2D)(trArch.GetComponentPtr(int(physicsComponentID), row))
+		phys := (*Physics2D)(world.GetComponent(e2, Physics2DComponentID))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
-	mask := ecs.MakeMask(transformComponentID.UInt64(), physicsComponentID.UInt64())
+	mask := ecs.MakeComponentMask(Transform2DComponentID, Physics2DComponentID)
 
 	dt := float32(1.0 / 60.0)
 
 	for i := 0; i < updateCount; i++ {
-		var iter ecs.QueryIterator
-		iter.Prepare(mask, graph)
+		iter := world.Query(mask)
 		for iter.Next() {
-			tr := (*Transform2D)(iter.Get(transformComponentID))
-			phys := (*Physics2D)(iter.Get(physicsComponentID))
+			tr := (*Transform2D)(iter.Get(Transform2DComponentID))
+			phys := (*Physics2D)(iter.Get(Physics2DComponentID))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt

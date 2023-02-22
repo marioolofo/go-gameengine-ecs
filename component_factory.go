@@ -5,79 +5,81 @@ import (
 	"unsafe"
 )
 
-type Component struct {
-	EntityID
-	reflect.Type
+const (
+	MaxComponentCount          = 256
+	ComponentStorageInitialCap = 1024
+	ComponentStorageIncrement  = 2048
+)
+
+type ComponentID = uint
+
+func MakeComponentMask(bits ...ComponentID) Mask {
+	mask := Mask{}
+	for _, bit := range bits {
+		mask.Set(uint64(bit))
+	}
+	return mask
+}
+
+type ComponentRegistry struct {
+	id ComponentID
 	reflect.Value
 	SingletonPtr unsafe.Pointer
-	NewStorage   func(initialSize, increment uint) Storage
+	NewStorage   func() Storage
 }
 
 type ComponentFactory struct {
-	refs map[reflect.Type]*Component
-	ids  map[uint64]*Component
+	refs       map[reflect.Type]uint
+	components [MaxComponentCount]ComponentRegistry
 }
 
-func NewComponentRegistry[T any](ep EntityPool) *Component {
-	return newComponentRegistry[T](ep, false)
-}
+func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
+	var t T
+	typeOf := reflect.TypeOf(t)
+	value := reflect.New(typeOf)
 
-func NewComponentSingletonRegistry[T any](ep EntityPool) *Component {
-	return newComponentRegistry[T](ep, true)
+	return ComponentRegistry{
+		id,
+		value,
+		value.UnsafePointer(),
+		func() Storage {
+			return NewStorage[T](ComponentStorageInitialCap, ComponentStorageIncrement)
+		},
+	}
 }
 
 func NewComponentFactory() ComponentFactory {
 	return ComponentFactory{
-		make(map[reflect.Type]*Component),
-		make(map[uint64]*Component),
+		refs:       make(map[reflect.Type]uint),
+		components: [MaxComponentCount]ComponentRegistry{},
 	}
 }
 
-func (c *ComponentFactory) Register(comp *Component) EntityID {
-	_, ok := c.ids[comp.EntityID.ID()]
-	if !ok {
-		c.ids[comp.EntityID.ID()] = comp
-		c.refs[comp.Type] = comp
+func (c *ComponentFactory) Register(comp ComponentRegistry) {
+	if c.components[comp.id].SingletonPtr != unsafe.Pointer(nil) {
+		panic("Component already registered")
 	}
-	return comp.EntityID
+
+	c.refs[comp.Value.Type()] = comp.id
+	c.components[comp.id] = comp
 }
 
-func (c *ComponentFactory) GetByType(typ interface{}) (*Component, bool) {
+func (c *ComponentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool) {
 	t := reflect.TypeOf(typ)
 	comp, ok := c.refs[t]
 
-	return comp, ok
-}
-
-func (c *ComponentFactory) GetByID(id EntityID) (*Component, bool) {
-	comp, ok := c.ids[id.ID()]
-	return comp, ok
-}
-
-func newComponentRegistry[T any](ep EntityPool, singleton bool) *Component {
-	var t T
-	typeOf := reflect.TypeOf(t)
-
-	id := ep.NewComponent()
-	if singleton {
-		id = id.Singleton()
+	var reg *ComponentRegistry
+	if ok {
+		reg = &c.components[comp]
 	}
 
-	value := reflect.New(typeOf)
+	return reg, ok
+}
 
-	return &Component{
-		id,
-		typeOf,
-		value,
-		value.UnsafePointer(),
-		func(ini, incr uint) Storage {
-			if singleton {
-				return nil
-			}
-			if ini < 1 {
-				ini = 1
-			}
-			return NewStorage[T](ini, incr)
-		},
+func (c *ComponentFactory) GetByID(id ComponentID) (*ComponentRegistry, bool) {
+	if c.components[id].SingletonPtr == unsafe.Pointer(nil) {
+		return nil, false
 	}
+
+	return &c.components[id], true
 }

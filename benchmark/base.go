@@ -5,7 +5,7 @@ import (
 )
 
 const (
-	UIDesignComponentID ecs.EntityID = iota
+	UIDesignComponentID ecs.ComponentID = iota
 	Transform2DComponentID
 	Physics2DComponentID
 	ScriptComponentID

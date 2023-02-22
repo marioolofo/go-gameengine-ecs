@@ -4,7 +4,7 @@ import "math/bits"
 
 // HashEntityIDArray hashes the ID part of the EntityID array
 // Uses murmur3 to hash the values
-func HashEntityIDArray(values []EntityID, seed uint32) uint32 {
+func HashUint64Array(seed uint32, values []uint64) uint32 {
 	hash := seed
 
 	c1 := uint32(0xcc9e2d51)
@@ -18,6 +18,16 @@ func HashEntityIDArray(values []EntityID, seed uint32) uint32 {
 		lo *= c2
 
 		hash ^= lo
+		hash = bits.RotateLeft32(hash, 13)
+		hash = hash*5 + 0xe6546b64
+
+		hi := uint32(val)
+
+		hi *= c1
+		hi = bits.RotateLeft32(lo, 15)
+		hi *= c2
+
+		hash ^= hi
 		hash = bits.RotateLeft32(hash, 13)
 		hash = hash*5 + 0xe6546b64
 	}
