@@ -1,3 +1,4 @@
+//lint:file-ignore U1000 ignoring this for now
 package ecs_benchmark
 
 import (

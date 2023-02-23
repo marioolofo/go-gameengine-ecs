@@ -15,6 +15,7 @@ func TestComponentFactory(t *testing.T) {
 		ConfigCompID
 		InputCompID
 	)
+	//lint:file-ignore U1000 we are testing different sized structs
 	type Vec3 struct{ x, y, z float32 }
 	type Amno struct{ quantity int }
 	type Config struct {

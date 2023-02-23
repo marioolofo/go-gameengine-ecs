@@ -42,6 +42,9 @@ func main() {
 	// world.Component return the pointer to the entity's component
 	cam := (*Camera)(world.Component(cameraID, CameraComponentID))
 	cam.follows = playerID
+	size := (*Size)(world.Component(cameraID, SizeComponentID))
+	size.width = 1920
+	size.height = 1080
 
 	// Get the input singleton to update every controllable entity
 	actualInput := (*Input)(world.Component(gameWorldID, InputComponentID))

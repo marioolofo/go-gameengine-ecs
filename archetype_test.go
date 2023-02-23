@@ -1,3 +1,4 @@
+//lint:file-ignore U1000 we are testing differente sizes of struct only
 package ecs
 
 import (

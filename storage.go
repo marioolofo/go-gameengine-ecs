@@ -59,7 +59,7 @@ func NewStorage[T any](initialLen, increment uint) Storage {
 		increment = StorageBufferIncrementBy
 	}
 
-	buffer := make([]T, initialLen, initialLen)
+	buffer := make([]T, initialLen)
 	return &storage[T]{
 		increment,
 		buffer,
@@ -103,7 +103,7 @@ func (s *storage[T]) Expand(to uint) {
 }
 
 func (s *storage[T]) Reset() {
-	s.buffer = make([]T, 0, 0)
+	s.buffer = make([]T, 0)
 	s.bufferPtr = unsafe.Pointer(nil)
 }
 
@@ -121,7 +121,7 @@ func (s storage[T]) Stats() StorageStats {
 func (s *storage[T]) ensureCap(size uint) {
 	if size >= uint(cap(s.buffer)) {
 		prevBuffer := s.buffer
-		s.buffer = make([]T, int(size+s.increment), int(size+s.increment))
+		s.buffer = make([]T, int(size+s.increment))
 		s.bufferPtr = unsafe.Pointer(&s.buffer[0])
 		copy(s.buffer, prevBuffer)
 	}

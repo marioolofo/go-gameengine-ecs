@@ -8,8 +8,6 @@ const MaskTotalBits = MaxComponentCount
 // Mask defines an array of bits with fixed size of MaxTotalBits
 type Mask [MaskTotalBits / 64]uint64
 
-var nibbleToBitsSet = [16]uint{0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4}
-
 // MakeMask creates a new bitmask from a list of bits
 // If any bit is bigger or equal MaskTotalBits, it'll not be added to the mask
 func MakeMask(bits ...uint64) Mask {
@@ -81,16 +79,6 @@ func (m Mask) TotalBitsSet() uint {
 		acc += bits.OnesCount64(v)
 	}
 	return uint(acc)
-
-	// 	count := uint(0)
-	//
-	// 	for _, e := range m {
-	// 		for e != 0 {
-	// 			count += nibbleToBitsSet[e&0xf]
-	// 			e >>= 4
-	// 		}
-	// 	}
-	// 	return count
 }
 
 // NextBitSet returns the index of the next bit set in range [startingFromBit, MaskTotalBits]

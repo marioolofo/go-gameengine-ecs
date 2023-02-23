@@ -279,7 +279,7 @@ func (a *archetypeGraph) compressRow(index int, row uint32) {
 	}
 	arch.entities[row] = entity
 	arch.entities = arch.entities[:lastRow]
-	cache, _ := a.entityMap[entity]
+	cache := a.entityMap[entity]
 	cache.row = uint32(row)
 	a.entityMap[entity] = cache
 }

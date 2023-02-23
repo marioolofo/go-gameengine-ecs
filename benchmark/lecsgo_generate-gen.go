@@ -98,6 +98,7 @@ func (w LecsGOWorld) DelUIDesign(entity ecs.Entity) {
 			w.world.UpdateFilters(entity, 0, false)
 			w.world.Pools[0].(*poolUIDesign).Recycle(entity)
 			maskLen := len(entityData.Mask)
+			//lint:ignore SA4003 ignore bugs in other packages
 			maskIdx := sort.Search(maskLen, func(i int) bool { return entityData.Mask[i] >= 0 })
 			copy(entityData.Mask[maskIdx:], entityData.Mask[maskIdx+1:])
 			entityData.Mask = entityData.Mask[:maskLen-1]

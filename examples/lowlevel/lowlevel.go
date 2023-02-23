@@ -61,6 +61,9 @@ func main() {
 	// arch.Component return the pointer to the component's data in the specific row
 	cam := (*Camera)(arch.Component(CameraComponentID, row))
 	cam.follows = playerID
+	size := (*Size)(arch.Component(SizeComponentID, row))
+	size.width = 1920
+	size.height = 1080
 
 	// Update every controllable object with the input singleton:
 	arch, row = archGraph.Get(gameWorldID)

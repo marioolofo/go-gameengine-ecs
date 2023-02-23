@@ -9,7 +9,7 @@ import (
 
 func TestWorld(t *testing.T) {
 	const Vec3CompID ComponentID = 0
-	type Vec3 struct{ x, y, z float32 }
+	type Vec3 struct{}
 
 	world := NewWorld(100)
 	assert.NotNil(t, world, "NewWorld should return a valid World object")
