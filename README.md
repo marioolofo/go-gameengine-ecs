@@ -2,6 +2,10 @@
 
 ## _Fast Entity Component System in Golang_
 
+[![Go Reference](https://pkg.go.dev/badge/github.com/marioolofo/go-gameengine-ecs.svg)](https://pkg.go.dev/github.com/marioolofo/go-gameengine-ecs)
+[![GitHub](https://img.shields.io/badge/github-repo-blue?logo=github)](https://github.com/marioolofo/go-gameengine-ecs)
+[![MIT license](https://img.shields.io/github/license/mlange-42/arche)](https://github.com/marioolofo/go-gameengine-ecs/blob/main/LICENSE)
+
 This module is the ECS part of the game engine i'm writing in Go.
 
 Features:
