@@ -2,7 +2,6 @@ package ecs
 
 import (
 	"reflect"
-	"unsafe"
 )
 
 const (
@@ -19,64 +18,32 @@ type ComponentFactory interface {
 	GetByID(id ComponentID) (*ComponentRegistry, bool)
 }
 
-type ComponentFactoryConfig struct {
-	StorageInitialSize   uint
-	StorageIncrementStep uint
-}
-
-type ComponentRegistry struct {
-	id ComponentID
-	reflect.Value
-	SingletonPtr unsafe.Pointer
-	NewStorage   func() Storage
-}
-
 type componentFactory struct {
 	refs       map[reflect.Type]uint
 	components [MaxComponentCount]ComponentRegistry
-}
-
-func MakeComponentMask(bits ...ComponentID) Mask {
-	mask := Mask{}
-	for _, bit := range bits {
-		mask.Set(uint64(bit))
-	}
-	return mask
-}
-
-func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
-	var t T
-	typeOf := reflect.TypeOf(t)
-	value := reflect.New(typeOf)
-
-	return ComponentRegistry{
-		id,
-		value,
-		value.UnsafePointer(),
-		func() Storage {
-			return NewStorage[T](ComponentStorageInitialCap, ComponentStorageIncrement)
-		},
-	}
+	mask       Mask
 }
 
 func NewComponentFactory() ComponentFactory {
 	return &componentFactory{
 		refs:       make(map[reflect.Type]uint),
 		components: [MaxComponentCount]ComponentRegistry{},
+		mask:       Mask{},
 	}
 }
 
 func (c *componentFactory) Register(comp ComponentRegistry) {
-	if c.components[comp.id].SingletonPtr != unsafe.Pointer(nil) {
+	if c.mask.IsSet(uint64(comp.ID)) {
 		panic("Component already registered")
 	}
 
-	c.refs[comp.Value.Type()] = comp.id
-	c.components[comp.id] = comp
+	c.refs[comp.Type] = comp.ID
+	c.components[comp.ID] = comp
+	c.mask.Set(uint64(comp.ID))
 }
 
 func (c *componentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool) {
-	t := reflect.TypeOf(typ)
+	t := reflect.Indirect(reflect.ValueOf(typ)).Type()
 	comp, ok := c.refs[t]
 
 	var reg *ComponentRegistry
@@ -88,7 +55,7 @@ func (c *componentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool)
 }
 
 func (c *componentFactory) GetByID(id ComponentID) (*ComponentRegistry, bool) {
-	if c.components[id].SingletonPtr == unsafe.Pointer(nil) {
+	if !c.mask.IsSet(uint64(id)) {
 		return nil, false
 	}
 

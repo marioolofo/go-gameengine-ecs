@@ -43,7 +43,7 @@ func main() {
 	cam := (*Camera)(world.Component(cameraID, CameraComponentID))
 	cam.follows = playerID
 
-	// Update every controllable object with the input singleton:
+	// Get the input singleton to update every controllable entity
 	actualInput := (*Input)(world.Component(gameWorldID, InputComponentID))
 
 	// World.Query creates a iterator for entities that have the requested components
