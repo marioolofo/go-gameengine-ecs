@@ -66,6 +66,8 @@ func TestComponentFactory(t *testing.T) {
 	assert.False(t, v == unsafe.Pointer(nil), "storage.Get should return valid pointer even for zero sized structs")
 
 	storage = singlComp.NewStorage()
+	storage2 := singlComp.NewStorage()
+	assert.Equal(t, storage, storage2, "singleton storage should always return the same Storage")
 	ptr := storage.Get(0)
 	ptr2 := storage.Get(1000)
 	assert.Equal(t, ptr, ptr2, "singleton storage should return the same address for any index")
