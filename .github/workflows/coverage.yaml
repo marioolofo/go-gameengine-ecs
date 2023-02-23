@@ -7,7 +7,7 @@ jobs:
     name: Check 100% coverage
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v
+      - uses: actions/checkout@v3
       - name: Setup Go
         uses: actions/setup-go@v3
         with:
