@@ -2,6 +2,7 @@ package ecs
 
 import (
 	"testing"
+	"unsafe"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -18,17 +19,20 @@ func TestComponentFactory(t *testing.T) {
 		playerCount uint
 		score       []uint
 	}
+	type Tag struct{}
 
 	factory := NewComponentFactory()
 
 	vec3Comp := NewComponentRegistry[Vec3](Vec3CompID)
 	amnoComp := NewComponentRegistry[Amno](AmnoCompID)
+	configComp := NewComponentRegistry[Config](ConfigCompID)
 
 	assert.NotNil(t, vec3Comp, "NewComponentRegistry[Vec3] should return a Component")
 	assert.NotNil(t, amnoComp, "NewComponentRegistry[Amno] should return a Component")
 
 	factory.Register(vec3Comp)
 	factory.Register(amnoComp)
+	factory.Register(configComp)
 
 	assert.Panics(t, func() {
 		factory.Register(amnoComp)
@@ -46,4 +50,10 @@ func TestComponentFactory(t *testing.T) {
 
 	storage := vec3Comp.NewStorage()
 	assert.NotNil(t, storage, "comp.NewStorage() should return a valid Storage")
+
+	storage = configComp.NewStorage()
+	assert.NotNil(t, storage, "comp.NewStorage() should return a valid Storage")
+
+	v := storage.Get(0)
+	assert.False(t, v == unsafe.Pointer(nil), "storage.Get should return valid pointer even for zero sized structs")
 }
