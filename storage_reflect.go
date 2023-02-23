@@ -6,7 +6,6 @@ import (
 	"unsafe"
 )
 
-// storage is a storage implementation that works with reflection
 type storageReflect struct {
 	buffer            reflect.Value
 	bufferAddress     unsafe.Pointer
@@ -15,6 +14,12 @@ type storageReflect struct {
 	capacityIncrement uint32
 }
 
+/*
+ NewStorageReflect creates a new Storage using reflection.
+
+ This implementation is a bit slower than the generic version, as it have
+ to detect in runtime the size of the item to index the address
+*/
 func NewStorageReflect(ref interface{}, initialLen, increment uint) Storage {
 	if increment == 0 {
 		increment = StorageBufferIncrementBy
@@ -35,7 +40,6 @@ func NewStorageReflect(ref interface{}, initialLen, increment uint) Storage {
 	}
 }
 
-// Get retrieves an unsafe pointer to an element
 func (s *storageReflect) Get(index uint) unsafe.Pointer {
 	return unsafe.Add(s.bufferAddress, uintptr(index)*s.itemSize)
 }

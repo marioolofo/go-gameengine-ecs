@@ -5,20 +5,20 @@ import (
 	"unsafe"
 )
 
+/*
+	ComponentRegistry defines a component ID, it's type and how to create a new Storage for it.
+*/
 type ComponentRegistry struct {
+	// ID defines the identifier for this component
 	ID ComponentID
+	// Type is the type of the component
 	reflect.Type
+	// NewStorage is a factory function that returns an implementation of the Storage interface
 	NewStorage func() Storage
+	singleton  Storage
 }
 
-func MakeComponentMask(bits ...ComponentID) Mask {
-	mask := Mask{}
-	for _, bit := range bits {
-		mask.Set(uint64(bit))
-	}
-	return mask
-}
-
+// NewComponentRegistry[T] returns a ComponentRegistry definition for the type T and id
 func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
 	var t T
 	typeOf := reflect.TypeOf(t)
@@ -29,19 +29,25 @@ func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
 		func() Storage {
 			return NewStorage[T](ComponentStorageInitialCap, ComponentStorageIncrement)
 		},
+		nil,
 	}
 }
 
+// NewSingletonComponentRegistry[T] returns a ComponentRegistry definition for the type T and id,
+// with the difference that the NewStorage always returns the same Storage for every call.
 func NewSingletonComponentRegistry[T any](id ComponentID) ComponentRegistry {
 	var t T
 	typeOf := reflect.TypeOf(t)
+
+	storage := newSingletonStorage[T]()
 
 	return ComponentRegistry{
 		id,
 		typeOf,
 		func() Storage {
-			return newSingletonStorage[T]()
+			return storage
 		},
+		storage,
 	}
 }
 

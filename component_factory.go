@@ -5,13 +5,25 @@ import (
 )
 
 const (
-	MaxComponentCount          uint = 256
+	// the maximum number of components that can be stored
+	MaxComponentCount uint = 256
+	// initial number of elements in the component Storage
 	ComponentStorageInitialCap uint = 1024
-	ComponentStorageIncrement  uint = 2048
+	// number of elements that must be added to the Storage when needed
+	ComponentStorageIncrement uint = 2048
 )
 
-type ComponentID = uint
+/*
+	ComponentFactory is the interface used to store and search for component definitions.
+	It's implemented this way to make the code modular and provides a way to share a factory
+	between multiple worlds/archetype graphs
 
+	Register registers the component definition in this factory
+
+	GetByType returns the ComponentRegistry for the component of a given type
+
+	GetByID returns the ComponentRegistry for the component id
+*/
 type ComponentFactory interface {
 	Register(comp ComponentRegistry)
 	GetByType(typ interface{}) (*ComponentRegistry, bool)
@@ -24,6 +36,7 @@ type componentFactory struct {
 	mask       Mask
 }
 
+// NewComponentFactory returns an implementation of the ComponentFactory interface
 func NewComponentFactory() ComponentFactory {
 	return &componentFactory{
 		refs:       make(map[reflect.Type]uint),

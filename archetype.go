@@ -4,6 +4,23 @@ import (
 	"unsafe"
 )
 
+/*
+	ArchetypeGraph defines the interface for an archetype graph.
+	This interface allows for multiple implementations, for example, for a version
+	with 256 components and another slower version with unconstrained components.
+
+	Add inserts an EntityID in the graph and reserves memory for it's components
+
+	Rem removes the entity from the graph, recycling the components
+
+	Get returns the archetype and row for the entity entry
+
+	AddComponent adds the ComponentID to the entity, moving it to another archetype.
+
+	RemComponent removes the ComponentID from the entity, moving it to another archetype.
+
+	Query returns a QueryCursor for the mask
+*/
 type ArchetypeGraph interface {
 	Add(EntityID, ...ComponentID)
 	Rem(EntityID)
@@ -31,6 +48,7 @@ type Archetype struct {
 	entities []EntityID
 }
 
+// Component returns the pointer to the component data at col and row in this archetype
 func (a *Archetype) Component(col ComponentID, row uint32) unsafe.Pointer {
 	return a.columns[col].Get(uint(row))
 }

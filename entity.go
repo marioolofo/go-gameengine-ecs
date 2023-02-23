@@ -1,9 +1,12 @@
 package ecs
 
+// EntityID is the identification of an entity in the world
 type EntityID uint64
 
 const (
+	// bits used for the identifier part of the ID
 	EntityIdentifierBitCount = 32
+	// bits used to the generation part of the ID
 	EntityGenerationBitCount = 24
 	EntityGenerationShift    = EntityIdentifierBitCount
 	EntityFlagsStartBit      = (EntityIdentifierBitCount + EntityGenerationBitCount)
@@ -20,31 +23,38 @@ const (
 	FlagEntitySingleton  = EntityID(1 << (EntityFlagsStartBit + 4))
 )
 
+// MakeEntity returns a new EntityID with id and generation
 func MakeEntity(id, gen uint64) EntityID {
 	entity := id | (gen << EntityGenerationShift & EntityGenerationMask)
 	return EntityID(entity)
 }
 
+// MakeEntityWithFlags returns a new EntityID with id, generation and flags set
 func MakeEntityWithFlags(id, gen uint64, flags EntityID) EntityID {
 	return MakeEntity(id, gen) | flags
 }
 
+// UInt64 returns the full EntityID as uint64
 func (e EntityID) UInt64() uint64 {
 	return uint64(e)
 }
 
+// Gen returns the generation part of the EntityID
 func (e EntityID) Gen() uint64 {
 	return e.UInt64() & EntityGenerationMask >> EntityGenerationShift
 }
 
+// ID returns the identification part of the entity
 func (e EntityID) ID() uint64 {
 	return e.UInt64() & EntityIdentifierMask
 }
 
+// SetID returns a new EntityID with the new id and old generation and flags
 func (e EntityID) SetID(id uint64) EntityID {
 	return EntityID(e.UInt64()&^EntityIdentifierMask | (id & EntityIdentifierMask))
 }
 
+// Flags returns a new EntityID with only the flags set
 func (e EntityID) Flags() EntityID {
 	return EntityID(e.UInt64() & EntityFlagsMask)
 }
@@ -91,6 +101,7 @@ func (e EntityID) Enable() EntityID {
 	return e & ^EntityID(FlagEntityDisabled)
 }
 
+// WithoutFlags returns a new EntityID with only the id and generation
 func (e EntityID) WithoutFlags() EntityID {
 	return e & ^EntityID(EntityFlagsMask)
 }

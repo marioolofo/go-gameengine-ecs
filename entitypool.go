@@ -1,5 +1,17 @@
 package ecs
 
+/*
+	EntityPool defines the interface for the entity ID manager.
+	It uses an implicit linked list to keep track of all recycled IDs without an additional buffer.
+	When a recycled ID is returned, it have its generation bits incremented to differentiate it from
+	the older one.
+
+	New returns a new EntityID
+
+	Recycle puts the EntityID in the recycle list for reuse. If the entity is not alive, returns false and do nothing.
+
+	IsAlive returns true if the EntityID is alive in the pool
+*/
 type EntityPool interface {
 	New() EntityID
 	Recycle(e EntityID) bool
@@ -7,7 +19,7 @@ type EntityPool interface {
 }
 
 const (
-	EntityPoolInitialCapacity = 1024 * 10
+	EntityPoolInitialCapacity = 1024 * 10 // default initial buffer size
 )
 
 type entityPool struct {
@@ -16,6 +28,10 @@ type entityPool struct {
 	available uint64
 }
 
+/*
+	NewEntityPool returns a implementation of EntityPool with initialCap as capacity.
+	If the initialCap == 0, the initial capcity is set to EntityPoolInitialCapacity
+*/
 func NewEntityPool(initialCap uint) EntityPool {
 	if initialCap == 0 {
 		initialCap = EntityPoolInitialCapacity

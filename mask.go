@@ -10,7 +10,7 @@ type Mask [MaskTotalBits / 64]uint64
 
 var nibbleToBitsSet = [16]uint{0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4}
 
-// NewMask creates a new bitmask from a list of bits
+// MakeMask creates a new bitmask from a list of bits
 // If any bit is bigger or equal MaskTotalBits, it'll not be added to the mask
 func MakeMask(bits ...uint64) Mask {
 	mask := Mask{}
@@ -20,18 +20,21 @@ func MakeMask(bits ...uint64) Mask {
 	return mask
 }
 
+// Set sets the bit in the mask. If the bit is bigger or equal to MaskTotalBits, it's ignored
 func (m *Mask) Set(bit uint64) {
 	if bit < uint64(MaskTotalBits) {
 		m[bit>>6] |= (1 << (bit & 63))
 	}
 }
 
+// Clear clear the bit in the mask. If the bit is bigger or equal to MaskTotalBits, it's ignored
 func (m *Mask) Clear(bit uint64) {
 	if bit < uint64(MaskTotalBits) {
 		m[bit>>6] &= ^(1 << (bit & 63))
 	}
 }
 
+// IsSet returns if the bit is set in the mask. If the bit is bigger or equal to MaskTotalBits, it returns false
 func (m Mask) IsSet(bit uint64) bool {
 	if bit >= uint64(MaskTotalBits) {
 		return false
@@ -47,10 +50,12 @@ func (m Mask) IsEmpty() bool {
 	return acc == 0
 }
 
+// Reset clear all the bits in the mask
 func (m *Mask) Reset() {
 	*m = Mask{}
 }
 
+// And returns a new mask with the result of the operator AND between the mask and the argument
 func (m Mask) And(mask Mask) Mask {
 	newMask := m
 	for i, v := range mask {
@@ -59,6 +64,7 @@ func (m Mask) And(mask Mask) Mask {
 	return newMask
 }
 
+// Contains returns true if the mask contains all the bits set in the submask argument
 func (m Mask) Contains(sub Mask) bool {
 	for i, v := range sub {
 		if m[i]&v != v {

@@ -6,17 +6,25 @@ import (
 	"unsafe"
 )
 
-// Storage is the interface that controls the allocation and access of blocks of memory.
-//
-// Get returns the unsafe.Pointer for the memory block identified by Index or nil if the index is invalid
-//
-// Set fill the memory block at Index with the contents of interface{}
-//
-// Remove removes the entry at index
-//
-// Reset discards all the blocks and sets the Storage to its initial state
-//
-// Stats collects statistics from the Storage
+/*
+ Storage is the interface that controls the allocation and access of blocks of memory.
+
+ Get returns the unsafe.Pointer for the memory block identified by Index or nil if the index is invalid
+
+ Set fill the memory block at Index with the contents of interface{}
+
+ Copy copies the contents of unsafe.Pointer to the index position
+
+ Shrink reduces the buffer size to the desired size.
+ This function does nothing if the buffer size is smaller than the new size.
+
+ Expand adds more space to the storage
+ This function does nothing if the buffer size is larger than the new size.
+
+ Reset discards all the blocks and sets the Storage to a zero state
+
+ Stats collects statistics from the Storage
+*/
 type Storage interface {
 	Get(uint) unsafe.Pointer
 	Set(uint, interface{}) bool
@@ -29,13 +37,13 @@ type Storage interface {
 
 // StorageStats is the runtime information of a specific Storage
 type StorageStats struct {
-	Type     reflect.Type
-	ItemSize uint // size in Bytes for every instance of the item
-	Cap      uint // current item capacity
+	Type     reflect.Type // type of the storage buffer
+	ItemSize uint         // size in Bytes for every instance of the item
+	Cap      uint         // current storage capacity in items
 }
 
 const (
-	StorageBufferIncrementBy = 10000
+	StorageBufferIncrementBy = 10000 // how much to increase the Storage when needed
 )
 
 type storage[T any] struct {
