@@ -6,13 +6,11 @@ This module is the ECS part of the game engine i'm writing in Go.
 
 Features:
 
+- 256 components limit per world, but an unconstrained alternative coming soon
+- modular, you can use only pieces of the code, from entity id generation to archetype graph management
+- archetypes for grouping entities with same components for fast linear access
 - as fast as packages with automatic code generation, but no setup and regeneration required for every change
-- bitmask for component mapping
-- sparse arrays for fast memory mapping
-- memory allocated in chunks instead of dynamic arrays, ensuring a single memory
-  address for the lifetime of the component instance
-- filters instead of services, automatically updated after adding or removing
-  components to the world
+- iterator instead of systems for linear memory access of components for a given query
 - the code is commented and the documentation can be generated with godoc
 - 100% test coverage
 
@@ -22,104 +20,107 @@ Features:
 go get github.com/marioolofo/go-gameengine-ecs
 ```
 
-> This project was made with Go 1.17, but it may work with older versions too
+> This project was made with Go 1.18 and it's needed for some bits of generic code
 
 ## Example
 
 See the [examples](./examples) folder.
 
-From [simple.go](./examples/simple/simple.ho):
+From [simple.go](./examples/simple/simple.go):
 
 ```go
 package main
 
-import (
-	"github.com/marioolofo/go/gameengine/ecs"
-)
+import ecs "github.com/marioolofo/go-gameengine-ecs"
 
-// Component IDs
+// definitions for component ids
 const (
-	TransformID ecs.ID = iota
-	PhysicsID
+	InputComponentID ecs.ComponentID = iota
+	PositionComponentID
+	SizeComponentID
+	ControllableComponentID
+	CameraComponentID
 )
 
-type Vec2D struct {
-	x, y float32
-}
-
-type TransformComponent struct {
-	position Vec2D
-	rotation float32
-}
-
-type PhysicsComponent struct {
-	linearAccel, velocity Vec2D
-	angularAccel, torque  float32
-}
+type Input struct{ xAxis, yAxis, buttons int }
+type Position struct{ x, y float32 }
+type Size struct{ width, height float32 }
+type Controllable struct{}
+type Camera struct{ follows ecs.EntityID }
 
 func main() {
-	// initial configuration to create the world, new components can be
-	// added latter with world.RegisterComponents()
-	config := []ecs.ComponentConfig{
-		{ID: TransformID, Component: TransformComponent{}},
-		{ID: PhysicsID, Component: PhysicsComponent{}},
+	// NewWorld creates the world. See lowlevel.go example for a behind the scenes version
+	world := ecs.NewWorld(10)
+
+	// First we need to register the components to be able to use them:
+	// NewComponentRegistry[T] simplify the creation of the component's definition struct
+	world.Register(ecs.NewComponentRegistry[Position](PositionComponentID))
+	world.Register(ecs.NewComponentRegistry[Size](SizeComponentID))
+	world.Register(ecs.NewComponentRegistry[Camera](CameraComponentID))
+
+	// Tag components without data are valid components:
+	world.Register(ecs.NewComponentRegistry[Controllable](ControllableComponentID))
+
+	// We can have singleton components. It'll be created when the first entity needs it and
+	// every call to this component will always return the same pointer
+	world.Register(ecs.NewSingletonComponentRegistry[Input](InputComponentID))
+
+	// NewEntity adds the entity with declared components to the world and return the EntityID.
+	gameWorldID := world.NewEntity(InputComponentID)
+	playerID := world.NewEntity(ControllableComponentID, PositionComponentID, SizeComponentID)
+	cameraID := world.NewEntity(CameraComponentID, PositionComponentID, SizeComponentID)
+
+	// world.Component return the pointer to the entity's component
+	cam := (*Camera)(world.Component(cameraID, CameraComponentID))
+	cam.follows = playerID
+
+	// Get the input singleton to update every controllable entity
+	actualInput := (*Input)(world.Component(gameWorldID, InputComponentID))
+
+	// World.Query creates a iterator for entities that have the requested components
+	//
+	// This solution is better than using Systems to update the entities because it's up to
+	// the programmer to decide at what rates every group of entities updates.
+	// Because of Archetypes, the layout of components in memory are sequentially, making
+	// the iterations for the most part access the components linearly in memory
+	query := world.Query(ecs.MakeComponentMask(ControllableComponentID, PositionComponentID))
+	// QueryCursor.Next will return false when we iterate over all found entities
+	for query.Next() {
+		// QueryCursor.Component will return the component for this entity
+		pos := (*Position)(query.Component(PositionComponentID))
+		pos.x += float32(actualInput.xAxis)
+		pos.y += float32(actualInput.yAxis)
 	}
 
-	// NewWorld allocates a world and register the components
-	world := ecs.NewWorld(config...)
+	// Now, update the cameras with the followed entity's position
+	query = world.Query(ecs.MakeComponentMask(CameraComponentID))
+	for query.Next() {
+		cam = (*Camera)(query.Component(CameraComponentID))
+		camPos := (*Position)(query.Component(PositionComponentID))
 
-	// World.NewEntity will add a new entity to this world
-	entity := world.NewEntity()
-	// World.Assign adds a list of components to the entity
-	// If the entity already have the component, the Assign is ignored
-	world.Assign(entity, PhysicsID, TransformID)
+		// only follow if the entity is still alive:
+		if world.IsAlive(cam.follows) {
+			followPos := (*Position)(world.Component(cam.follows, PositionComponentID))
 
-	// Any component registered on this entity can be retrieved using World.Component()
-	// It's safe to keep this reference until the entity or the component is removed
-	phys := (*PhysicsComponent)(world.Component(entity, PhysicsID))
-	phys.linearAccel = Vec2D{x: 2, y: 1.5}
-
-	// World.NewFilter creates a cache of entities that have the required components
-	//
-	// This solution is better than using Systems to update the entities because it's possible to
-	// iterate over the filters at variable rate inside your own update function, for example,
-	// the script for AI don't need to update at same frequency as physics and animations
-	//
-	// This filter will be automatically updated when entities or components are added/removed to the world
-	filter := world.NewFilter(TransformID, PhysicsID)
-
-	dt := float32(1.0 / 60.0)
-
-	// filter.Entities() returns the updated list of entities that have the required components
-	for _, entity := range filter.Entities() {
-		// get the components for the entity
-		phys := (*PhysicsComponent)(world.Component(entity, PhysicsID))
-		tr := (*TransformComponent)(world.Component(entity, TransformID))
-
-		phys.velocity.x += phys.linearAccel.x * dt
-		phys.velocity.y += phys.linearAccel.y * dt
-
-		tr.position.x += phys.velocity.x * dt
-		tr.position.y += phys.velocity.y * dt
-
-		phys.velocity.x *= 0.99
-		phys.velocity.y *= 0.99
+			camPos.x = followPos.x
+			camPos.y = followPos.y
+		} else {
+			camPos.x = float32(0.0)
+			camPos.y = float32(0.0)
+		}
 	}
-
-	// When a filter is no longer needed, just call World.RemFilter() to remove it from the world
-	// This is needed as the filters are updated when the world changes
-	world.RemFilter(filter)
 }
-
 ```
 
 ### Benchmarks
 
-The benchmark folder contains the implementations of a simple test case for
-performance comparison for this package as GameEngineECS, [Entitas](https://github.com/Falldot/Entitas-Go), [Ento](https://github.com/wfranczyk/ento), [Gecs](https://github.com/tutumagi/gecs), [LecsGO](https://github.com/Leopotam/go-ecs) and [EngoEngine](github.com/EngoEngine/ecs) and below are the results running on my machine.
+## 2023/02/23 - These benchmarks are from the old version of this package and I'll update them ASAP
 
-*Notice that **EngoEngine** lets to you the responsability for keeping track of entities in the systems,
-so the results may be diferent for other scenarios or usecases (to be implemented).*
+The benchmark folder contains the implementations of a simple test case for
+performance comparison for this package as GameEngineECS, [Entitas](https://github.com/Falldot/Entitas-Go), [Ento](https://github.com/wfranczyk/ento), [Gecs](https://github.com/tutumagi/gecs), [LecsGO](https://github.com/Leopotam/go-ecs), [EngoEngine](github.com/EngoEngine/ecs) and [Arche](https://github.com/mlange-42/arche) and below are the results running on my machine.
+
+_Notice that **EngoEngine** lets to you the responsability for keeping track of entities in the systems,
+so the results may be diferent for other scenarios or usecases (to be implemented)._
 
 **Just creation and 4 components addition to the world:**
 
@@ -155,6 +156,7 @@ BenchmarkLecsGO_100000_entities_0_updates-8          	1000000000	         0.0710
 PASS
 ok  	github.com/marioolofo/go-gameengine-ecs/benchmark	2.654s
 ```
+
 ![0 iterations graph](./benchmark/results/0updates.png)
 
 #### Iteration time for 100~10,000 entities:
@@ -193,6 +195,7 @@ BenchmarkLecsGO_100000_entities_100_updates-8          	1000000000	         0.12
 PASS
 ok  	github.com/marioolofo/go-gameengine-ecs/benchmark	42.865s
 ```
+
 ![100 iterations graph](./benchmark/results/100updates.png)
 
 **1,000 iterations:**
@@ -229,6 +232,7 @@ BenchmarkLecsGO_100000_entities_1000_updates-8          	1000000000	         0.6
 PASS
 ok  	github.com/marioolofo/go-gameengine-ecs/benchmark	177.623s
 ```
+
 ![1,000 iterations graph](./benchmark/results/1000updates.png)
 
 **10,000 iterations:**
@@ -265,6 +269,7 @@ BenchmarkLecsGO_100000_entities_10000_updates-8          	       1	15729605049 n
 PASS
 ok  	github.com/marioolofo/go-gameengine-ecs/benchmark	492.671s
 ```
+
 ![10,000 iterations graph](./benchmark/results/10000updates.png)
 
 ## License
@@ -294,3 +299,4 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 
+```
