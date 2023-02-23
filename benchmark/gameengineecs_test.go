@@ -8,7 +8,7 @@ import (
 )
 
 func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
-	world := ecs.NewWorld(uint(entityCount + 10))
+	world := ecs.NewWorld(uint(entityCount))
 
 	world.Register(ecs.NewComponentRegistry[UIDesign](UIDesignComponentID))
 	world.Register(ecs.NewComponentRegistry[Transform2D](Transform2DComponentID))
@@ -18,12 +18,12 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 	for i := 0; i < entityCount/2; i++ {
 		e1 := world.NewEntity(UIDesignComponentID, ScriptComponentID)
 
-		design := (*UIDesign)(world.GetComponent(e1, UIDesignComponentID))
+		design := (*UIDesign)(world.Component(e1, UIDesignComponentID))
 		design.name = fmt.Sprint("entity_", i)
 
 		e2 := world.NewEntity(Transform2DComponentID, Physics2DComponentID)
 
-		phys := (*Physics2D)(world.GetComponent(e2, Physics2DComponentID))
+		phys := (*Physics2D)(world.Component(e2, Physics2DComponentID))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
@@ -34,8 +34,8 @@ func GameEngineECSBench(b *testing.B, entityCount, updateCount int) {
 	for i := 0; i < updateCount; i++ {
 		iter := world.Query(mask)
 		for iter.Next() {
-			tr := (*Transform2D)(iter.Get(Transform2DComponentID))
-			phys := (*Physics2D)(iter.Get(Physics2DComponentID))
+			tr := (*Transform2D)(iter.Component(Transform2DComponentID))
+			phys := (*Physics2D)(iter.Component(Physics2DComponentID))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt

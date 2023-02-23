@@ -20,12 +20,6 @@ const (
 	FlagEntitySingleton  = EntityID(1 << (EntityFlagsStartBit + 4))
 )
 
-type EntityIDSlice []EntityID
-
-func (e EntityIDSlice) Len() int           { return len(e) }
-func (e EntityIDSlice) Less(i, j int) bool { return e[i] < e[j] }
-func (e EntityIDSlice) Swap(i, j int)      { e[i], e[j] = e[j], e[i] }
-
 func MakeEntity(id, gen uint64) EntityID {
 	entity := id | (gen << EntityGenerationShift & EntityGenerationMask)
 	return EntityID(entity)
@@ -107,16 +101,4 @@ func (e EntityID) Component() EntityID {
 
 func (e EntityID) Singleton() EntityID {
 	return e.Component() | EntityID(FlagEntitySingleton)
-}
-
-func MakeEntityFindFn(entities []EntityID, find EntityID) (func(int) int) {
-	return func(pos int) int {
-		if entities[pos] == find {
-			return 0
-		}
-		if entities[pos] < find {
-			return 1
-		}
-		return -1
-	}
 }

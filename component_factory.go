@@ -6,19 +6,22 @@ import (
 )
 
 const (
-	MaxComponentCount          = 256
-	ComponentStorageInitialCap = 1024
-	ComponentStorageIncrement  = 2048
+	MaxComponentCount          uint = 256
+	ComponentStorageInitialCap uint = 1024
+	ComponentStorageIncrement  uint = 2048
 )
 
 type ComponentID = uint
 
-func MakeComponentMask(bits ...ComponentID) Mask {
-	mask := Mask{}
-	for _, bit := range bits {
-		mask.Set(uint64(bit))
-	}
-	return mask
+type ComponentFactory interface {
+	Register(comp ComponentRegistry)
+	GetByType(typ interface{}) (*ComponentRegistry, bool)
+	GetByID(id ComponentID) (*ComponentRegistry, bool)
+}
+
+type ComponentFactoryConfig struct {
+	StorageInitialSize   uint
+	StorageIncrementStep uint
 }
 
 type ComponentRegistry struct {
@@ -28,9 +31,17 @@ type ComponentRegistry struct {
 	NewStorage   func() Storage
 }
 
-type ComponentFactory struct {
+type componentFactory struct {
 	refs       map[reflect.Type]uint
 	components [MaxComponentCount]ComponentRegistry
+}
+
+func MakeComponentMask(bits ...ComponentID) Mask {
+	mask := Mask{}
+	for _, bit := range bits {
+		mask.Set(uint64(bit))
+	}
+	return mask
 }
 
 func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
@@ -49,13 +60,13 @@ func NewComponentRegistry[T any](id ComponentID) ComponentRegistry {
 }
 
 func NewComponentFactory() ComponentFactory {
-	return ComponentFactory{
+	return &componentFactory{
 		refs:       make(map[reflect.Type]uint),
 		components: [MaxComponentCount]ComponentRegistry{},
 	}
 }
 
-func (c *ComponentFactory) Register(comp ComponentRegistry) {
+func (c *componentFactory) Register(comp ComponentRegistry) {
 	if c.components[comp.id].SingletonPtr != unsafe.Pointer(nil) {
 		panic("Component already registered")
 	}
@@ -64,7 +75,7 @@ func (c *ComponentFactory) Register(comp ComponentRegistry) {
 	c.components[comp.id] = comp
 }
 
-func (c *ComponentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool) {
+func (c *componentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool) {
 	t := reflect.TypeOf(typ)
 	comp, ok := c.refs[t]
 
@@ -76,7 +87,7 @@ func (c *ComponentFactory) GetByType(typ interface{}) (*ComponentRegistry, bool)
 	return reg, ok
 }
 
-func (c *ComponentFactory) GetByID(id ComponentID) (*ComponentRegistry, bool) {
+func (c *componentFactory) GetByID(id ComponentID) (*ComponentRegistry, bool) {
 	if c.components[id].SingletonPtr == unsafe.Pointer(nil) {
 		return nil, false
 	}

@@ -30,6 +30,10 @@ func TestComponentFactory(t *testing.T) {
 	factory.Register(vec3Comp)
 	factory.Register(amnoComp)
 
+	assert.Panics(t, func() {
+		factory.Register(amnoComp)
+	})
+
 	comp, ok := factory.GetByType(&Vec3{})
 	assert.True(t, ok, "GetByType(&Vec3{}) should return Component ref")
 	assert.NotNil(t, comp, "GetByType(&Vec3{}) should return Component ref")

@@ -42,29 +42,44 @@ func TestStorageAllocation(t *testing.T) {
 		assert.Equal(t, v10.y, float32(2.0), "expected v10.y to be 2.0, got %f instead", v10.y)
 		assert.Equal(t, v10.z, float32(3.0), "expected v10.z to be 3.0, got %f instead", v10.z)
 
+		s.Copy(5, s.Get(10))
+		v5 := (*vec3)(s.Get(10))
+
+		assert.Equal(t, v5.x, float32(1.0), "expected v10.x to be 1.0, got %f instead", v5.x)
+		assert.Equal(t, v5.y, float32(2.0), "expected v10.y to be 2.0, got %f instead", v5.y)
+		assert.Equal(t, v5.z, float32(3.0), "expected v10.z to be 3.0, got %f instead", v5.z)
+
 		s.Reset()
 		stats = s.Stats()
 		assert.EqualValues(t, stats.Cap, uint(0), "capacity mismatch: got %d, want %d", stats.Cap, 0)
 	}
 
 	genericStorage := NewStorage[vec3](1, 5)
+	reflectStorage := NewStorageReflect(vec3{}, 1, 5)
 
 	testStorageAllocation(t, genericStorage)
+	testStorageAllocation(t, reflectStorage)
 }
 
 func TestStorageRemove(t *testing.T) {
 	type vec3 struct{ x, y, z float32 }
 
-	s := NewStorage[vec3](10, 0)
+	testStorageRemove := func(t *testing.T, s Storage) {
+		for i := 0; i < 10; i++ {
+			result := s.Set(uint(i), &vec3{float32(i), float32(i), float32(i)})
+			assert.True(t, result, "expected Set() to return true for valid index")
+		}
+		expected := []float32{0, 1, 2, 3, 4}
+		s.Shrink(uint(5))
+		for i, f := range expected {
+			v := (*vec3)(s.Get(uint(i)))
+			assert.Equal(t, v, &vec3{f, f, f}, "expected vec3 to be %+v, got %+v", vec3{f, f, f}, v)
+		}
+	}
 
-	for i := 0; i < 10; i++ {
-		result := s.Set(uint(i), &vec3{float32(i), float32(i), float32(i)})
-		assert.True(t, result, "expected Set() to return true for valid index")
-	}
-	expected := []float32{0, 1, 2, 3, 4}
-	s.Shrink(uint(5))
-	for i, f := range expected {
-		v := (*vec3)(s.Get(uint(i)))
-		assert.Equal(t, v, &vec3{f, f, f}, "expected vec3 to be %+v, got %+v", vec3{f, f, f}, v)
-	}
+	genericStorage := NewStorage[vec3](10, 0)
+	reflectStorage := NewStorageReflect(vec3{}, 10, 0)
+
+	testStorageRemove(t, genericStorage)
+	testStorageRemove(t, reflectStorage)
 }

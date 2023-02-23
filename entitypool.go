@@ -2,7 +2,6 @@ package ecs
 
 type EntityPool interface {
 	New() EntityID
-	NewComponent() EntityID
 	Recycle(e EntityID) bool
 	IsAlive(e EntityID) bool
 }
@@ -22,12 +21,10 @@ func NewEntityPool(initialCap uint) EntityPool {
 		initialCap = EntityPoolInitialCapacity
 	}
 	ep := &entityPool{
-		entities:  make([]EntityID, 0, initialCap+1),
+		entities:  make([]EntityID, 1, initialCap+1),
 		next:      0,
 		available: 0,
 	}
-
-	ep.New()
 
 	return ep
 }
@@ -44,13 +41,6 @@ func (e *entityPool) New() EntityID {
 
 	entity := MakeEntity(uint64(len(e.entities)), 0)
 	e.entities = append(e.entities, entity)
-	return entity
-}
-
-func (e *entityPool) NewComponent() EntityID {
-	entity := e.New()
-	index := entity.ID()
-	e.entities[index] = entity
 	return entity
 }
 

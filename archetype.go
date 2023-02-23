@@ -4,46 +4,13 @@ import (
 	"unsafe"
 )
 
-type QueryIterator struct {
-	archetypes  []Archetype
-	columns     *[MaxComponentCount]Storage
-	mask        Mask
-	archIndex   int
-	entityIndex int
-	entityTotal int
-}
-
-func (e *QueryIterator) Prepare(mask Mask, graph *ArchetypeGraph) bool {
-	e.archetypes = graph.archetypes
-	e.mask = mask
-	e.entityIndex = 0
-	e.entityTotal = 0
-	e.archIndex = 0
-
-	return e.Next()
-}
-
-func (e *QueryIterator) Next() bool {
-	if e.entityIndex < e.entityTotal {
-		e.entityIndex++
-		return true
-	}
-
-	for e.archIndex < len(e.archetypes) {
-		arch := &e.archetypes[e.archIndex]
-		e.archIndex++
-		if arch.mask.Contains(e.mask) {
-			e.entityIndex = -1
-			e.entityTotal = len(arch.entities) - 1
-			e.columns = &arch.columns
-			return true
-		}
-	}
-	return false
-}
-
-func (e *QueryIterator) Get(component ComponentID) unsafe.Pointer {
-	return e.columns[component].Get(uint(e.entityIndex))
+type ArchetypeGraph interface {
+	Add(EntityID, ...ComponentID)
+	Rem(EntityID)
+	Get(EntityID) (*Archetype, uint32)
+	AddComponent(EntityID, ComponentID)
+	RemComponent(EntityID, ComponentID)
+	Query(Mask) QueryCursor
 }
 
 // ArchEdge defines the link between archetypes.
@@ -58,15 +25,13 @@ type ArchEdge struct {
 // when a component is a singleton, the Storage is nil and the data is accessed
 // by the ComponentFactory.SingletonPtr
 type Archetype struct {
-	id         uint32
-	mask       Mask
-	components []ComponentID
-	columns    [MaxComponentCount]Storage
-	edges      map[ComponentID]ArchEdge
-	entities   []EntityID
+	mask     Mask
+	columns  [MaxComponentCount]Storage
+	edges    map[ComponentID]ArchEdge
+	entities []EntityID
 }
 
-func (a *Archetype) GetComponentPtr(col ComponentID, row uint32) unsafe.Pointer {
+func (a *Archetype) Component(col ComponentID, row uint32) unsafe.Pointer {
 	return a.columns[col].Get(uint(row))
 }
 
@@ -76,27 +41,27 @@ type archetypeEntityIndex struct {
 	row       uint32
 }
 
-type ArchetypeGraph struct {
-	factory      *ComponentFactory
+type archetypeGraph struct {
+	factory      ComponentFactory
 	entityMap    map[EntityID]archetypeEntityIndex
-	archetypeMap map[uint32]int
+	archetypeMap map[Mask]int
 	archetypes   []Archetype
 }
 
-// NewArchetypeGraph returns an ArchetypeGraph responsible for creating and caching the
+// NewarchetypeGraph returns an ArchetypeGraph responsible for creating and caching the
 // relationship between entities and components.
-func NewArchetypeGraph(factory *ComponentFactory) *ArchetypeGraph {
-	arch := &ArchetypeGraph{
+func NewArchetypeGraph(factory ComponentFactory) ArchetypeGraph {
+	arch := &archetypeGraph{
 		factory,
 		make(map[EntityID]archetypeEntityIndex),
-		make(map[uint32]int),
+		make(map[Mask]int),
 		make([]Archetype, 0, 256),
 	}
-	arch.archetypeMap[0] = arch.newArchetype(0, Mask{})
+	arch.archetypeMap[Mask{}] = arch.newArchetype(Mask{})
 	return arch
 }
 
-func (a *ArchetypeGraph) Add(entity EntityID, components ...ComponentID) {
+func (a *archetypeGraph) Add(entity EntityID, components ...ComponentID) {
 	_, exists := a.entityMap[entity]
 	if exists {
 		panic("trying to add the same entity twice (did you mean AddComponent instead?)")
@@ -108,7 +73,7 @@ func (a *ArchetypeGraph) Add(entity EntityID, components ...ComponentID) {
 	a.entityMap[entity] = archetypeEntityIndex{archetype, row}
 }
 
-func (a *ArchetypeGraph) Rem(entity EntityID) {
+func (a *archetypeGraph) Rem(entity EntityID) {
 	cache, ok := a.entityMap[entity]
 	if ok {
 		a.compressRow(cache.archetype, cache.row)
@@ -116,7 +81,7 @@ func (a *ArchetypeGraph) Rem(entity EntityID) {
 	}
 }
 
-func (a *ArchetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
+func (a *archetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		return nil, 0
@@ -125,7 +90,7 @@ func (a *ArchetypeGraph) Get(entity EntityID) (*Archetype, uint32) {
 	return &a.archetypes[cache.archetype], cache.row
 }
 
-func (a *ArchetypeGraph) AddComponent(entity EntityID, component ComponentID) {
+func (a *archetypeGraph) AddComponent(entity EntityID, component ComponentID) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		// should panic?
@@ -140,7 +105,7 @@ func (a *ArchetypeGraph) AddComponent(entity EntityID, component ComponentID) {
 	a.updateEntityRelation(entity, component, cache.archetype, cache.row, true)
 }
 
-func (a *ArchetypeGraph) RemComponent(entity EntityID, component ComponentID) {
+func (a *archetypeGraph) RemComponent(entity EntityID, component ComponentID) {
 	cache, ok := a.entityMap[entity]
 	if !ok {
 		return
@@ -153,23 +118,28 @@ func (a *ArchetypeGraph) RemComponent(entity EntityID, component ComponentID) {
 	a.updateEntityRelation(entity, component, cache.archetype, cache.row, false)
 }
 
-func (a *ArchetypeGraph) findOrCreateArchetype(components []ComponentID) int {
+func (a *archetypeGraph) Query(mask Mask) QueryCursor {
+	var qc QueryCursor
+	qc.prepare(mask, a)
+	return qc
+}
+
+func (a *archetypeGraph) findOrCreateArchetype(components []ComponentID) int {
 	if len(components) == 0 {
 		return 0
 	}
 
 	mask := MakeComponentMask(components...)
-	key := HashUint64Array(0, mask[:])
 
-	arch, ok := a.archetypeMap[key]
+	arch, ok := a.archetypeMap[mask]
 	if !ok {
-		arch = a.prepareNewArchetype(key, mask)
-		a.archetypeMap[key] = arch
+		arch = a.prepareNewArchetype(mask)
+		a.archetypeMap[mask] = arch
 	}
 	return arch
 }
 
-func (a *ArchetypeGraph) updateEntityRelation(
+func (a *archetypeGraph) updateEntityRelation(
 	entity EntityID, component ComponentID,
 	from int, row uint32, toAdd bool) {
 
@@ -178,7 +148,7 @@ func (a *ArchetypeGraph) updateEntityRelation(
 	a.entityMap[entity] = archetypeEntityIndex{arch, newRow}
 }
 
-func (a *ArchetypeGraph) findOrCreateConnection(from int, component ComponentID, toAdd bool) int {
+func (a *archetypeGraph) findOrCreateConnection(from int, component ComponentID, toAdd bool) int {
 	fromArch := a.archetypes[from]
 	edge, ok := fromArch.edges[component]
 	if ok && edge.add > -1 {
@@ -192,12 +162,10 @@ func (a *ArchetypeGraph) findOrCreateConnection(from int, component ComponentID,
 		mask.Clear(uint64(component))
 	}
 
-	key := HashUint64Array(0, mask[:])
-
-	index, ok := a.archetypeMap[key]
+	index, ok := a.archetypeMap[mask]
 	if !ok {
-		index = a.prepareNewArchetype(key, mask)
-		a.archetypeMap[key] = index
+		index = a.prepareNewArchetype(mask)
+		a.archetypeMap[mask] = index
 	}
 
 	arch := a.archetypes[index]
@@ -213,7 +181,7 @@ func (a *ArchetypeGraph) findOrCreateConnection(from int, component ComponentID,
 	return index
 }
 
-func (a *ArchetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) uint32 {
+func (a *archetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) uint32 {
 	toRow := a.getUnusedRow(to, entity)
 
 	fromArch := &a.archetypes[from]
@@ -232,10 +200,9 @@ func (a *ArchetypeGraph) moveEntity(entity EntityID, from, to int, row uint32) u
 	return toRow
 }
 
-func (a *ArchetypeGraph) newArchetype(key uint32, mask Mask) int {
+func (a *archetypeGraph) newArchetype(mask Mask) int {
 	index := len(a.archetypes)
 	a.archetypes = append(a.archetypes, Archetype{
-		id:       key,
 		mask:     mask,
 		columns:  [MaxComponentCount]Storage{},
 		edges:    make(map[ComponentID]ArchEdge, MaxComponentCount),
@@ -245,8 +212,8 @@ func (a *ArchetypeGraph) newArchetype(key uint32, mask Mask) int {
 	return index
 }
 
-func (a *ArchetypeGraph) prepareNewArchetype(key uint32, mask Mask) int {
-	index := a.newArchetype(key, mask)
+func (a *archetypeGraph) prepareNewArchetype(mask Mask) int {
+	index := a.newArchetype(mask)
 	arch := &a.archetypes[index]
 
 	bit := mask.NextBitSet(0)
@@ -262,7 +229,7 @@ func (a *ArchetypeGraph) prepareNewArchetype(key uint32, mask Mask) int {
 	return index
 }
 
-func (a *ArchetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
+func (a *archetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
 	arch := &a.archetypes[index]
 	row := uint32(len(arch.entities))
 	arch.entities = append(arch.entities, entity)
@@ -278,16 +245,19 @@ func (a *ArchetypeGraph) getUnusedRow(index int, entity EntityID) uint32 {
 	return row
 }
 
-func (a *ArchetypeGraph) compressRow(index int, row uint32) {
-	arch := a.archetypes[index]
+func (a *archetypeGraph) compressRow(index int, row uint32) {
+	arch := &a.archetypes[index]
 
 	lastRow := uint(len(arch.entities) - 1)
 	entity := arch.entities[lastRow]
 
-	for _, col := range arch.columns {
+	bit := arch.mask.NextBitSet(0)
+	for bit < MaskTotalBits {
+		col := arch.columns[bit]
 		if col != nil {
 			col.Copy(uint(row), col.Get(lastRow))
 		}
+		bit = arch.mask.NextBitSet(bit + 1)
 	}
 	arch.entities[row] = entity
 	arch.entities = arch.entities[:lastRow]

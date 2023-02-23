@@ -1,7 +1,6 @@
 package ecs
 
 func test() {
-
 	world := NewWorld()
 	// number of threads to execute the loop of searches
 	world.SetParallel(4)

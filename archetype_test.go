@@ -44,7 +44,7 @@ func TestArchetypeGraph(t *testing.T) {
 
 	t.Run("ArchetypeGraphCore", func(t *testing.T) {
 		compFac := NewComponentFactory()
-		ag := NewArchetypeGraph(&compFac)
+		ag := NewArchetypeGraph(compFac)
 		assert.Panics(t, func() {
 			ag.Add(1000, 0, 1, 2, 3, 4, 5, 6)
 		}, "trying to use invalid components should panic")
@@ -54,7 +54,7 @@ func TestArchetypeGraph(t *testing.T) {
 			ag.Add(1000)
 		}, "trying to add entity multiple times should panic")
 
-		ag = NewArchetypeGraph(&factory)
+		ag = NewArchetypeGraph(factory)
 
 		assert.NotPanics(t, func() {
 			ag.Rem(100)
@@ -88,11 +88,12 @@ func TestArchetypeGraph(t *testing.T) {
 
 		ag.RemComponent(e1, HealthCompID)
 		archE1, _ := ag.Get(e1)
-		assert.True(t, archE1 == posOri, "invalid archetype transition (want %d, got %d)", posOri.id, archE1.id)
+		assert.True(t, archE1 == posOri, "invalid archetype transition (want %d, got %d)", posOri.mask, archE1.mask)
 
 		ag.AddComponent(e1, HealthCompID)
 		archE1, _ = ag.Get(e1)
-		assert.True(t, archE1 == posOriHealth, "invalid archetype transition (want %d, got %d)", posOriHealth.id, archE1.id)
+		assert.True(t, archE1 == posOriHealth, "invalid archetype transition (want %d, got %d)", posOriHealth.mask, archE1.mask)
+		assert.True(t, archE1.Component(HealthCompID, 0) != unsafe.Pointer(nil), "archetype.Component should return valid pointer")
 
 		ag.AddComponent(e3, Pos3DCompID)
 		archE3, _ := ag.Get(e3)
@@ -121,7 +122,7 @@ func TestArchetypeGraph(t *testing.T) {
 	})
 
 	t.Run("ArchetypeGraph component values", func(t *testing.T) {
-		ag := NewArchetypeGraph(&factory)
+		ag := NewArchetypeGraph(factory)
 
 		type EntityPos3D struct {
 			EntityID
@@ -178,7 +179,7 @@ func TestArchetypeGraph(t *testing.T) {
 func BenchmarkArchetypeGraph(b *testing.B) {
 	entityPool := NewEntityPool(100000)
 	factory := NewComponentFactory()
-	graph := NewArchetypeGraph(&factory)
+	graph := NewArchetypeGraph(factory)
 
 	type Vec2D struct {
 		x, y float32
@@ -221,14 +222,14 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 
 		arch, row := graph.Get(e1)
 
-		design := (*UIDesign)(arch.GetComponentPtr(UIDesignCompID, row))
+		design := (*UIDesign)(arch.Component(UIDesignCompID, row))
 		design.name = fmt.Sprint("entity_", i)
 
 		e2 := entityPool.New()
 		graph.Add(e2, Transf2DCompID, Phys2DCompID)
 
 		trArch, row := graph.Get(e2)
-		phys := (*Physics2D)(trArch.GetComponentPtr(Phys2DCompID, row))
+		phys := (*Physics2D)(trArch.Component(Phys2DCompID, row))
 		phys.linearAccel = Vec2D{x: 2, y: 1.5}
 	}
 
@@ -239,12 +240,11 @@ func BenchmarkArchetypeGraph(b *testing.B) {
 	count := 0
 
 	for i := 0; i < updateCount; i++ {
-		var iter QueryIterator
-		iter.Prepare(mask, graph)
+		iter := graph.Query(mask)
 		for iter.Next() {
 			count++
-			tr := (*Transform2D)(iter.Get(Transf2DCompID))
-			phys := (*Physics2D)(iter.Get(Phys2DCompID))
+			tr := (*Transform2D)(iter.Component(Transf2DCompID))
+			phys := (*Physics2D)(iter.Component(Phys2DCompID))
 
 			phys.velocity.x += phys.linearAccel.x * dt
 			phys.velocity.y += phys.linearAccel.y * dt

@@ -2,11 +2,11 @@ package ecs
 
 import "math/bits"
 
-// Mask defines an array of bits with fixed size of MaxTotalBits
-type Mask [4]uint64
-
 // MaskTotalBits is the size of Mask in bits
-const MaskTotalBits = 256
+const MaskTotalBits = MaxComponentCount
+
+// Mask defines an array of bits with fixed size of MaxTotalBits
+type Mask [MaskTotalBits / 64]uint64
 
 var nibbleToBitsSet = [16]uint{0, 1, 1, 2, 1, 2, 2, 3, 1, 2, 2, 3, 2, 3, 3, 4}
 
@@ -21,23 +21,30 @@ func MakeMask(bits ...uint64) Mask {
 }
 
 func (m *Mask) Set(bit uint64) {
-	if bit < MaskTotalBits {
+	if bit < uint64(MaskTotalBits) {
 		m[bit>>6] |= (1 << (bit & 63))
 	}
 }
 
 func (m *Mask) Clear(bit uint64) {
-	if bit < MaskTotalBits {
+	if bit < uint64(MaskTotalBits) {
 		m[bit>>6] &= ^(1 << (bit & 63))
 	}
 }
 
 func (m Mask) IsSet(bit uint64) bool {
+	if bit >= uint64(MaskTotalBits) {
+		return false
+	}
 	return m[bit>>6]&(1<<(bit&63)) != 0
 }
 
 func (m Mask) IsEmpty() bool {
-	return (m[0] | m[1] | m[2] | m[3]) == 0
+	acc := m[0]
+	for i := uint64(1); i < uint64(MaskTotalBits/64); i++ {
+		acc |= m[i]
+	}
+	return acc == 0
 }
 
 func (m *Mask) Reset() {
@@ -45,27 +52,29 @@ func (m *Mask) Reset() {
 }
 
 func (m Mask) And(mask Mask) Mask {
-	return Mask{
-		m[0] & mask[0],
-		m[1] & mask[1],
-		m[2] & mask[2],
-		m[3] & mask[3],
+	newMask := m
+	for i, v := range mask {
+		newMask[i] &= v
 	}
+	return newMask
 }
 
 func (m Mask) Contains(sub Mask) bool {
-	return m[0]&sub[0] == sub[0] &&
-		m[1]&sub[1] == sub[1] &&
-		m[2]&sub[1] == sub[2] &&
-		m[3]&sub[1] == sub[3]
+	for i, v := range sub {
+		if m[i]&v != v {
+			return false
+		}
+	}
+	return true
 }
 
 // TotalBitsSet returns how many bits are set in this mask
 func (m Mask) TotalBitsSet() uint {
-	return uint(bits.OnesCount64(m[0]) +
-		bits.OnesCount64(m[1]) +
-		bits.OnesCount64(m[2]) +
-		bits.OnesCount64(m[3]))
+	acc := 0
+	for _, v := range m {
+		acc += bits.OnesCount64(v)
+	}
+	return uint(acc)
 
 	// 	count := uint(0)
 	//
@@ -91,7 +100,7 @@ func (m Mask) NextBitSet(startingFromBit uint) uint {
 		if word < uint(len(m)-1) {
 			return m.NextBitSet((word + 1) << 6)
 		}
-		return MaskTotalBits
+		return uint(MaskTotalBits)
 	}
 	if e&1 != 0 {
 		return (word << 6) + count

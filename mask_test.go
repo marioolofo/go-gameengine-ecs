@@ -21,11 +21,14 @@ func TestBitmaskNew(t *testing.T) {
 }
 
 func TestBitmaskOutOfRange(t *testing.T) {
-	invalidMask := MakeMask(MaskTotalBits + 10)
+	invalidMask := MakeMask(uint64(MaskTotalBits + 10))
 	invalidMaskCompare := Mask{}
 
 	if invalidMask != invalidMaskCompare {
 		t.Error("invalid mask is not equal zeroed mask", invalidMask)
+	}
+	if invalidMask.IsSet(uint64(MaskTotalBits + 10)) {
+		t.Error("expected invalid range bit to return false", invalidMask)
 	}
 }
 
@@ -65,7 +68,7 @@ func TestBitmaskContains(t *testing.T) {
 }
 
 func TestBitmaskSearch(t *testing.T) {
-	for i := uint64(0); i < MaskTotalBits; i++ {
+	for i := uint64(0); i < uint64(MaskTotalBits); i++ {
 		mask := MakeMask(i)
 		offset := mask.NextBitSet(0)
 		if offset != uint(i) {

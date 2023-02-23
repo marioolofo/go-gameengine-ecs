@@ -59,14 +59,6 @@ func NewStorage[T any](initialLen, increment uint) Storage {
 	}
 }
 
-func (s *storage[T]) Alloc() *T {
-	var t T
-	index := uint(len(s.buffer))
-	s.ensureCap(index + 1)
-	s.buffer = append(s.buffer, t)
-	return &s.buffer[index]
-}
-
 func (s *storage[T]) Get(index uint) unsafe.Pointer {
 	var t T
 	return unsafe.Add(s.bufferPtr, unsafe.Sizeof(t)*uintptr(index))
@@ -105,10 +97,6 @@ func (s *storage[T]) Expand(to uint) {
 func (s *storage[T]) Reset() {
 	s.buffer = make([]T, 0, 0)
 	s.bufferPtr = unsafe.Pointer(nil)
-}
-
-func (s *storage[T]) Cap() int {
-	return cap(s.buffer)
 }
 
 func (s storage[T]) Stats() StorageStats {
