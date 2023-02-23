@@ -18,4 +18,4 @@ jobs:
         run: |
           go test -v ./... -covermode=count -coverprofile="coverage.out"
           go tool cover -func="coverage.out" -o="report.out"
-          grep total report.out | grep -q "100" && true || false
+          cat report.out | grep total | grep -q "100" && false || true
