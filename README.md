@@ -2,11 +2,11 @@
 
 ## _Fast Entity Component System in Golang_
 
-[![Test status](https://img.shields.io/github/actions/workflow/status/marioolofo/go-gameengine-ecs/tests.yaml?branch=main&label=Tests&logo=github)](https://github.com/mlange-42/arche/actions/workflows/tests.yml)
-[![100% Coverage](https://img.shields.io/github/actions/workflow/status/marioolofo/go-gameengine-ecs/coverage.yaml?branch=main&label=100%25%20Coverage&logo=github)](https://github.com/mlange-42/arche/actions/workflows/coverage.yml)
+[![Test status](https://img.shields.io/github/actions/workflow/status/marioolofo/go-gameengine-ecs/tests.yaml?branch=main&label=Tests&logo=github)](https://github.com/marioolofo/go-gameengine-ecs/actions/workflows/tests.yml)
+[![100% Coverage](https://img.shields.io/github/actions/workflow/status/marioolofo/go-gameengine-ecs/coverage.yaml?branch=main&label=100%25%20Coverage&logo=github)](https://github.com/marioolofo/go-gameengine-ecs/actions/workflows/coverage.yml)
 [![Go Reference](https://pkg.go.dev/badge/github.com/marioolofo/go-gameengine-ecs.svg)](https://pkg.go.dev/github.com/marioolofo/go-gameengine-ecs)
 [![GitHub](https://img.shields.io/badge/github-repo-blue?logo=github)](https://github.com/marioolofo/go-gameengine-ecs)
-[![MIT license](https://img.shields.io/github/license/mlange-42/arche)](https://github.com/marioolofo/go-gameengine-ecs/blob/main/LICENSE)
+[![MIT license](https://img.shields.io/github/license/marioolofo/go-gameengine-ecs)](https://github.com/marioolofo/go-gameengine-ecs/blob/main/LICENSE)
 
 This module is the ECS part of the game engine i'm writing in Go.
 
