@@ -14,15 +14,15 @@ const (
 )
 
 /*
-	ComponentFactory is the interface used to store and search for component definitions.
-	It's implemented this way to make the code modular and provides a way to share a factory
-	between multiple worlds/archetype graphs
+ComponentFactory is the interface used to store and search for component definitions.
+It's implemented this way to make the code modular and provides a way to share a factory
+between multiple worlds/archetype graphs
 
-	Register registers the component definition in this factory
+# Register registers the component definition in this factory
 
-	GetByType returns the ComponentRegistry for the component of a given type
+# GetByType returns the ComponentRegistry for the component of a given type
 
-	GetByID returns the ComponentRegistry for the component id
+GetByID returns the ComponentRegistry for the component id
 */
 type ComponentFactory interface {
 	Register(comp ComponentRegistry)

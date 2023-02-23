@@ -5,21 +5,21 @@ import (
 )
 
 /*
-	ArchetypeGraph defines the interface for an archetype graph.
-	This interface allows for multiple implementations, for example, for a version
-	with 256 components and another slower version with unconstrained components.
+ArchetypeGraph defines the interface for an archetype graph.
+This interface allows for multiple implementations, for example, for a version
+with 256 components and another slower version with unconstrained components.
 
-	Add inserts an EntityID in the graph and reserves memory for it's components
+# Add inserts an EntityID in the graph and reserves memory for it's components
 
-	Rem removes the entity from the graph, recycling the components
+# Rem removes the entity from the graph, recycling the components
 
-	Get returns the archetype and row for the entity entry
+# Get returns the archetype and row for the entity entry
 
-	AddComponent adds the ComponentID to the entity, moving it to another archetype.
+AddComponent adds the ComponentID to the entity, moving it to another archetype.
 
-	RemComponent removes the ComponentID from the entity, moving it to another archetype.
+RemComponent removes the ComponentID from the entity, moving it to another archetype.
 
-	Query returns a QueryCursor for the mask
+Query returns a QueryCursor for the mask
 */
 type ArchetypeGraph interface {
 	Add(EntityID, ...ComponentID)

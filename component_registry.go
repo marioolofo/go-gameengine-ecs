@@ -6,7 +6,7 @@ import (
 )
 
 /*
-	ComponentRegistry defines a component ID, it's type and how to create a new Storage for it.
+ComponentRegistry defines a component ID, it's type and how to create a new Storage for it.
 */
 type ComponentRegistry struct {
 	// ID defines the identifier for this component

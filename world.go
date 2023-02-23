@@ -1,24 +1,24 @@
 /*
-	Package ECS implements the Entity-Component-System pattern
+Package ECS implements the Entity-Component-System pattern
 
-	Besides the System in the name, this package offers a Query function
-	to iterate over the needed entities, leaving the systems implementation
-	to the user.
+Besides the System in the name, this package offers a Query function
+to iterate over the needed entities, leaving the systems implementation
+to the user.
 
-	This implementation is modular, so you can create the ComponentRegistry directly,
-	instantiate the EntityPool to control the entities alive in the project and use
-	the ArchetypeGraph to fast query the graph for specific entities.
+This implementation is modular, so you can create the ComponentRegistry directly,
+instantiate the EntityPool to control the entities alive in the project and use
+the ArchetypeGraph to fast query the graph for specific entities.
 
-	For more, see the examples in the example folder
+For more, see the examples in the example folder
 */
 package ecs
 
 import "unsafe"
 
 /*
-	World is the interface used to register components, manage entities and components.
+		World is the interface used to register components, manage entities and components.
 
- The World have the limitation of total MaxComponentCount different components
+	 The World have the limitation of total MaxComponentCount different components
 */
 type World interface {
 	// NewEntity creates an entity with optional components and return it's ID
@@ -51,7 +51,7 @@ type world struct {
 }
 
 /*
-	NewWorld returns an implementation for the World
+NewWorld returns an implementation for the World
 */
 func NewWorld(entityPoolSize uint) World {
 	factory := NewComponentFactory()

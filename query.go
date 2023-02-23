@@ -3,10 +3,10 @@ package ecs
 import "unsafe"
 
 /*
-	QueryCursor holds the data to iterate over the entities found for a given mask
+QueryCursor holds the data to iterate over the entities found for a given mask
 
-	Use this implementation in critical parts of your project
-	to access the entity ID and components in an efficient way
+Use this implementation in critical parts of your project
+to access the entity ID and components in an efficient way
 */
 type QueryCursor struct {
 	archetypes  []Archetype

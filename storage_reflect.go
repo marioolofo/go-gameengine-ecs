@@ -15,10 +15,10 @@ type storageReflect struct {
 }
 
 /*
- NewStorageReflect creates a new Storage using reflection.
+NewStorageReflect creates a new Storage using reflection.
 
- This implementation is a bit slower than the generic version, as it have
- to detect in runtime the size of the item to index the address
+This implementation is a bit slower than the generic version, as it have
+to detect in runtime the size of the item to index the address
 */
 func NewStorageReflect(ref interface{}, initialLen, increment uint) Storage {
 	if increment == 0 {

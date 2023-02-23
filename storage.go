@@ -7,23 +7,23 @@ import (
 )
 
 /*
- Storage is the interface that controls the allocation and access of blocks of memory.
+Storage is the interface that controls the allocation and access of blocks of memory.
 
- Get returns the unsafe.Pointer for the memory block identified by Index or nil if the index is invalid
+# Get returns the unsafe.Pointer for the memory block identified by Index or nil if the index is invalid
 
- Set fill the memory block at Index with the contents of interface{}
+Set fill the memory block at Index with the contents of interface{}
 
- Copy copies the contents of unsafe.Pointer to the index position
+# Copy copies the contents of unsafe.Pointer to the index position
 
- Shrink reduces the buffer size to the desired size.
- This function does nothing if the buffer size is smaller than the new size.
+Shrink reduces the buffer size to the desired size.
+This function does nothing if the buffer size is smaller than the new size.
 
- Expand adds more space to the storage
- This function does nothing if the buffer size is larger than the new size.
+Expand adds more space to the storage
+This function does nothing if the buffer size is larger than the new size.
 
- Reset discards all the blocks and sets the Storage to a zero state
+# Reset discards all the blocks and sets the Storage to a zero state
 
- Stats collects statistics from the Storage
+Stats collects statistics from the Storage
 */
 type Storage interface {
 	Get(uint) unsafe.Pointer
