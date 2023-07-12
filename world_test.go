@@ -43,3 +43,22 @@ func TestWorld(t *testing.T) {
 	world.RemEntity(e1)
 	assert.False(t, world.IsAlive(e1), "expected IsAlive to return false for invalid entities")
 }
+
+func Test_ECS_Component(t *testing.T) {
+	const (
+		CompAID ComponentID = iota
+		CompBID
+	)
+	type CompA struct{}
+	type CompB struct{}
+
+	w := NewWorld(0)
+
+	w.Register(NewComponentRegistry[CompA](CompAID))
+	w.Register(NewComponentRegistry[CompB](CompBID))
+
+	someEntity := w.NewEntity(CompAID)
+
+	b := (*CompB)(w.Component(someEntity, CompBID))
+	assert.Nil(t, b)
+}

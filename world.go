@@ -88,7 +88,11 @@ func (w *world) RemComponent(id EntityID, component ComponentID) {
 
 func (w *world) Component(entity EntityID, component ComponentID) unsafe.Pointer {
 	arch, row := w.archGraph.Get(entity)
-	return arch.columns[component].Get(uint(row))
+	column := arch.columns[component]
+	if column == nil {
+		return nil
+	}
+	return column.Get(uint(row))
 }
 
 func (w *world) Register(comp ComponentRegistry) {
